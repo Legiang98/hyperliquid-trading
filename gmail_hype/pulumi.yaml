@@ -1,0 +1,14 @@
+name: infrastructure
+description: A minimal TypeScript Pulumi program
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
+config:
+  azure-native:subscriptionId:
+    value: 59769386-04d8-4563-af08-31e2d068b693
+  pulumi:tags:
+    value:
+      pulumi:template: typescript
+backend:
+  url: azblob://pulumistate?storage_account=giangleiac
