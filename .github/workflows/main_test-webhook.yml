@@ -32,7 +32,6 @@ jobs:
         run: |
           pwd 
           ls -la 
-          ls -la ./${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
 
       - name: 'Resolve Project Dependencies Using Npm'
         shell: bash
