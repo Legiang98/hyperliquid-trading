@@ -9,7 +9,6 @@ app.http('webhookReceiver', {
             context.log(`Method: ${request.method}`);
             context.log(`URL: ${request.url}`);
             
-            // Handle both GET and POST requests
             if (request.method === 'GET') {
                 context.log('GET request received - webhook endpoint is alive');
                 return {
