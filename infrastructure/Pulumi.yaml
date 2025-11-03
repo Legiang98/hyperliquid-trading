@@ -1,0 +1,17 @@
+name: trading-infra
+description: A minimal Azure Native TypeScript Pulumi program
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
+config:
+  azure-native:subscriptionId:
+    value: 59769386-04d8-4563-af08-31e2d068b693
+  pulumi:tags:
+    value:
+      pulumi:template: azure-typescript
+
+curl -X POST \
+  https://test-webhook-ceczddgjgtfadxdj.southeastasia-01.azurewebsites.net \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"Test","body":"BUY"}' -i

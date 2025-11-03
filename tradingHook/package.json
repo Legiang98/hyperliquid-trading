@@ -1,8 +1,8 @@
 {
-  "name": "trading-webhook",
+  "name": "",
   "version": "1.0.0",
-  "description": "Azure Function for receiving trading signals via webhook",
-  "main": "webhookReceiver/index.js",
+  "description": "",
+  "main": "src/functions/*.js",
   "scripts": {
     "start": "func start",
     "test": "echo \"No tests yet...\""

@@ -1,0 +1,10 @@
+{
+    "azureFunctions.deploySubpath": "webhook/trading-webhook",
+    "azureFunctions.postDeployTask": "npm install (functions)",
+    "azureFunctions.projectLanguage": "JavaScript",
+    "azureFunctions.projectRuntime": "~4",
+    "debug.internalConsoleOptions": "neverOpen",
+    "azureFunctions.projectLanguageModel": 4,
+    "azureFunctions.projectSubpath": "webhook/trading-webhook",
+    "azureFunctions.preDeployTask": "npm prune (functions)"
+}
