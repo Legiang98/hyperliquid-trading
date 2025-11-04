@@ -2,3 +2,11 @@ secretsprovider: azurekeyvault://giangiacdev.vault.azure.net/keys/payroll
 encryptedkey: S2dqOTNIQWl2SEttYjIxektTS2dkRVRjME1jX0RwQkUwVmYyajZsbkszMnZTdkhzNWUtbW9DeUdoVGFmV1F1VEMySXpHeGQ0Z0JHQ0dQTnhmYXdFdWxqeExWQ0pHRjFwRDZqT1U4NE44b2hfY29nZ2lpSmttb0praEQxaXNUMS14a2hhOUg3ckxWRGRJcC1RaVZyZWx2ZFVsWHNCaE9GdUJsT0dPZWdNckhUY1BUbUxZSXRrdlpza2hwMktBcnFFMGM4czdzOG1mMnY4MTF5Z2FPYjJPa2xKVURwdGxGWHhNYTZLWVhXX3pTNkpYR0phM1llal9mTkpwTTlQdmFFTEVQQmtNLWJCQ1U1SUR1Tkhldm1YR2xZUW1MbEwybGVKdjZNVnMxS0s4MzJ5dldNZDhSMHVKdlN4MjlGVFZydTE2T05Eb2hWU0dxTnlXY2dKNFhDc093
 config:
   azure-native:location: Southeast Asia
+  trading-infra:location:
+    description: Azure region for deployment
+    default: "Southeast Asia"
+  trading-infra:hyperliquid-testnet:
+    description: Whether to use Hyperliquid testnet
+    default: "true"
+  trading-infra:hyperliquid-private-key:
+    description: Hyperliquid private key (secret)

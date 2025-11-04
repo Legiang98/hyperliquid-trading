@@ -1,5 +1,7 @@
 const { app } = require('@azure/functions');
 
+const hyperliquidTriggerUrl = process.env.HYPERLIQUID_TRIGGER_URL 
+
 app.http('tradingWebhook', {
     methods: ['GET', 'POST'],
     authLevel: 'anonymous',
@@ -26,15 +28,11 @@ app.http('tradingWebhook', {
         }
 
         const { subject, body, receivedAt, orderId, pair, action, entry, stopLoss } = payload;
-        context.log(`Subject: ${subject}`);
-        context.log(`Body: ${body}`);
-        context.log(`Received At: ${receivedAt}`);
-        context.log(`Order ID: ${orderId}`);
 
         // Simulate trigger to Hyperliquid
         let hyperliquidResponse = null;
         try {
-            const res = await fetch('http://localhost:7071/api/hyperliquidTrigger', {
+            const res = await fetch(hyperliquidTriggerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pair, action, entry, stopLoss, orderId })
