@@ -29,6 +29,11 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
+ 
+      - name: 'Fine path'
+        run: |
+          pwd 
+          ls -la 
 
       - name: 'Resolve Project Dependencies Using Npm'
         shell: pwsh
