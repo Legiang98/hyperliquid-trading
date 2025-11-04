@@ -30,7 +30,6 @@ export async function hyperliquidTrigger(request: HttpRequest, context: Invocati
             };
         }
 
-        
         // TODO: Initialize Hyperliquid client
         // const client = new HyperliquidClient({
         //     privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
