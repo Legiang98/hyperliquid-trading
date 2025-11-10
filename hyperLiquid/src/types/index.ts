@@ -1,0 +1,47 @@
+/**
+ * Type definitions for HyperLiquid trading webhook
+ */
+
+export interface WebhookPayload {
+    subject?: string;
+    body?: string;
+    receivedAt?: string;
+    pair: string;
+    action: string;
+    entry?: number;
+    stopLoss?: number;
+    orderId?: string;
+    position?: string;
+    reason?: string;
+}
+
+export interface TradingSignal {
+    symbol: string;
+    side: "buy" | "sell";
+    price: number | "MARKET";
+    signal: "entry" | "exit" | "update_stop";
+    stopLoss?: number;
+    orderId?: string;
+    reason?: string;
+}
+
+export interface OrderRequest {
+    symbol: string;
+    side: "buy" | "sell";
+    size: number;
+    price: number | "MARKET";
+    stopLoss?: number;
+}
+
+export interface OrderResult {
+    success: boolean;
+    orderId?: string;
+    message?: string;
+    error?: string;
+}
+
+export interface ValidationResult {
+    isValid: boolean;
+    reason?: string;
+    skipped?: boolean;
+}
