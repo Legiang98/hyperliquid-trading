@@ -51,7 +51,7 @@ export async function executeOrder(
         //     const closeResult = await exchangeClient.order({
         //         orders: [{
         //             a: assetId,
-        //             b: signal.side === "buy",
+        //             b: signal.order === "buy",
         //             p: "0", // Market order
         //             s: "0", // Close all
         //             r: true, // Reduce only

@@ -15,9 +15,10 @@ export interface WebhookPayload {
     reason?: string;
 }
 
+
 export interface TradingSignal {
     symbol: string;
-    side: "buy" | "sell";
+    order: "buy" | "sell";
     price: number | "MARKET";
     signal: "entry" | "exit" | "update_stop";
     stopLoss?: number;
@@ -25,9 +26,10 @@ export interface TradingSignal {
     reason?: string;
 }
 
+
 export interface OrderRequest {
     symbol: string;
-    side: "buy" | "sell";
+    order: "buy" | "sell";
     size: number;
     price: number | "MARKET";
     stopLoss?: number;

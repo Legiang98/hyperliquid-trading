@@ -130,17 +130,7 @@ async function hyperLiquidWebhook(
         //     });
         // } catch (err) {
         //     context.log.error("Failed to send Telegram message:", err);
-        // }
-
-
-        // // Step 6: Return response
-        // return {
-        //     status: 200,
-        //     jsonBody: {
-        //         success: orderResult.success,
-        //         message: orderResult.message || orderResult.error,
-        //         signal: {
-        //             symbol: signal.symbol,
+        // } //             symbol: signal.symbol,
         //             side: signal.side,
         //             type: signal.signal
         //         },

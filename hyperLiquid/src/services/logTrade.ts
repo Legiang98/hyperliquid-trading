@@ -12,7 +12,7 @@ export async function logTrade(
     const logEntry = {
         timestamp: new Date().toISOString(),
         symbol: signal.symbol,
-        side: signal.side,
+        order: signal.order,
         signal: signal.signal,
         price: signal.price,
         stopLoss: signal.stopLoss,
