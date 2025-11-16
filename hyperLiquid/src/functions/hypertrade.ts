@@ -9,6 +9,7 @@ const {
     logTrade 
 } = services;
 
+import { WebhookPayload } from "../services";
 /**
  * Main Azure Function for HyperLiquid trading webhook
  * Orchestrates: parse -> validate -> build -> execute -> log
@@ -20,7 +21,7 @@ async function hyperLiquidWebhook(
 
     try {
         // Step 1: Parse incoming webhook
-        const payload = await request.json();
+        const payload = await request.json() as WebhookPayload;
         // context.log("Received payload:", JSON.stringify(payload));
 
         const signal = await parseWebhook(payload);
@@ -107,7 +108,7 @@ async function hyperLiquidWebhook(
             };
         }
 
-        // // Step 5: Log trad
+        // // Step 5: Log trade
         const emoji = orderResult.success ? "✅" : "❌";
         const action = signal.signal === "entry" ? (signal.order === "buy" ? "🟢 Buy" : "🔴 Sell") : "🔁 Exit";
         const msg = `
@@ -122,22 +123,15 @@ async function hyperLiquidWebhook(
         const functionAppDomain = process.env.FUNCTION_APP_DOMAIN || "http://localhost:7071"
         context.log(`Sending Telegram message via ${functionAppDomain}/api/telegrambot`);
         context.log(msg);
-        // try {
-        //     await fetch(`${functionAppDomain}/api/telegrambot`, {
-        //         method: "POST",
-        //         headers: { "Content-Type": "application/json" },
-        //         body: JSON.stringify({ message: msg, parse_mode: "Markdown" })
-        //     });
-        // } catch (err) {
-        //     context.log.error("Failed to send Telegram message:", err);
-        // } //             symbol: signal.symbol,
-        //             side: signal.side,
-        //             type: signal.signal
-        //         },
-        //         orderId: orderResult.orderId,
-        //         timestamp: new Date().toISOString()
-        //     }
-        // };
+        try {
+            await fetch(`${functionAppDomain}/api/telegrambot`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: msg, parse_mode: "Markdown" })
+            });
+        } catch (err) {
+            context.error("Failed to send Telegram message:", err);
+        } 
 
     } catch (error) {
         context.error("Error processing webhook:", error);
@@ -146,7 +140,7 @@ async function hyperLiquidWebhook(
             jsonBody: {
                 success: false,
                 error: "Internal server error",
-                message: error instanceof Error ? error.message : "Unknown error",
+                // message: error instanceof Error ? error.message : "Unknown error",
                 timestamp: new Date().toISOString()
             }
         };

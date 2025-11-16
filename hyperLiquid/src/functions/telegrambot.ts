@@ -6,7 +6,7 @@ import { sendTelegramMessage } from "../services/telegram";
  */
 export async function telegrambot(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    const { message } = await request.json();
+    const { message } = await request.json() as { message?: string };
     if (!message) {
       return { status: 400, body: "Missing 'message' in request body" };
     }

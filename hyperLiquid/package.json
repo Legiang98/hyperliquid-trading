@@ -20,5 +20,8 @@
     "azure-functions-core-tools": "^4.x",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.9.0"
   }
 }

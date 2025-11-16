@@ -20,4 +20,4 @@ export { parseWebhook, validateSignal, buildOrder, executeOrder, logTrade };
 /**
  * Export types
  */
-export type { WebhookPayload, TradingSignal, ValidationResult, OrderConfig, OrderResult, TradeLog } from './types';
+export type { WebhookPayload, TradingSignal, ValidationResult, OrderResult } from '../types';

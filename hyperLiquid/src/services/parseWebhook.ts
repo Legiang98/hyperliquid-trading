@@ -43,7 +43,8 @@ export async function parseWebhook(payload: WebhookPayload): Promise<TradingSign
             };
         }
     } catch (error) {
-        context.error("Error parsing webhook:", error);
+        throw new Error("Something went wrong");
+        // context.error("Error parsing webhook:", error);
         return null;
     }
 }
