@@ -47,7 +47,7 @@ const hyperliquidAppServicePlan = new web.AppServicePlan("hyperliquid-plan", {
         name: "Y1",
         tier: "Dynamic"
     },
-    kind: "FunctionApp",
+    kind: "functionapp,linux",
     tags: {
         Environment: environment,
         Project: "HyperliquidTrading"
@@ -103,53 +103,14 @@ const hyperliquidFunctionApp = new web.WebApp("hyperliquid-function", {
     resourceGroupName: hyperliquidResourceGroup.name,
     location: hyperliquidResourceGroup.location,
     serverFarmId: hyperliquidAppServicePlan.id,
-    kind: "functionapp",
+    kind: "functionapp,linux",
     siteConfig: {
         appSettings: [
-            {
-                name: "AzureWebJobsStorage",
-                value: hyperliquidStorageConnectionString
-            },
-            {
-                name: "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-                value: hyperliquidStorageConnectionString
-            },
-            {
-                name: "WEBSITE_CONTENTSHARE",
-                value: pulumi.interpolate`hyperliquid-${environment}-func-content`
-            },
-            {
-                name: "FUNCTIONS_EXTENSION_VERSION",
-                value: "~4"
-            },
-            {
-                name: "FUNCTIONS_WORKER_RUNTIME",
-                value: "node"
-            },
-            {
-                name: "WEBSITE_NODE_DEFAULT_VERSION",
-                value: "~22"
-            },
-            {
-                name: "WEBSITE_RUN_FROM_PACKAGE",
-                value: "1"
-            },
-            {
-                name: "APPINSIGHTS_INSTRUMENTATIONKEY",
-                value: hyperliquidAppInsights.instrumentationKey
-            },
-            {
-                name: "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                value: hyperliquidAppInsights.connectionString
-            },
-            {
-                name: "HYPERLIQUID_TESTNET",
-                value: config.get("hyperliquid-testnet") || "true"
-            },
-            {
-                name: "HYPERLIQUID_PRIVATE_KEY",
-                value: config.requireSecret("hyperliquid-private-key")
-            }
+
+            // {
+            //     name: "FUNCTION_APP_DOMAIN",
+            //     value: pulumi.interpolate`https://${hyperliquidFunctionApp.defaultHostName}`
+            // }
         ],
         cors: {
             allowedOrigins: ["*"]
@@ -164,6 +125,27 @@ const hyperliquidFunctionApp = new web.WebApp("hyperliquid-function", {
     tags: {
         Environment: environment,
         Project: "HyperliquidTrading"
+    }
+});
+
+const hyperliquidAppSettings = new web.WebAppApplicationSettings("hyperliquid-app-settings", {
+    name: hyperliquidFunctionApp.name,
+    resourceGroupName: hyperliquidResourceGroup.name,
+    properties: {
+        FUNCTION_APP_DOMAIN: pulumi.interpolate`https://${hyperliquidFunctionApp.defaultHostName}`,
+        AzureWebJobsStorage: hyperliquidStorageConnectionString,
+        WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: hyperliquidStorageConnectionString,
+        WEBSITE_CONTENTSHARE: pulumi.interpolate`hyperliquid-${environment}-func-content`,
+        FUNCTIONS_EXTENSION_VERSION: "~4",
+        FUNCTIONS_WORKER_RUNTIME: "node",
+        WEBSITE_NODE_DEFAULT_VERSION: "~22",
+        WEBSITE_RUN_FROM_PACKAGE: "1",
+        APPINSIGHTS_INSTRUMENTATIONKEY: hyperliquidAppInsights.instrumentationKey,
+        APPLICATIONINSIGHTS_CONNECTION_STRING: hyperliquidAppInsights.connectionString,
+        HYPERLIQUID_TESTNET: config.get("hyperliquid-testnet") || "true",
+        HYPERLIQUID_PRIVATE_KEY: config.requireSecret("hyperliquid-private-key"),
+        TELEGRAM_CHAT_ID: config.requireSecret("telegram_chat_id"),
+        TELEGRAM_BOT_TOKEN: config.requireSecret("telegram_bot_token")
     }
 });
 

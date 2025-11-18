@@ -10,3 +10,7 @@ config:
     default: "true"
   trading-infra:hyperliquid-private-key:
     description: Hyperliquid private key (secret)
+  trading-infra:telegram_bot_token:
+      secure: v1:+18u92CwJgCSeep2:k/iBGojXCkj19do13NjKCBqJ+JWw4yRkNuEMPGtq3ccpKIbZbrNBfac1AVPRuoNnRjcEa/8nzdo0CRZ1nLA=
+  trading-infra:telegram_chat_id:
+      secure: v1:2WrffThaYL3CTvr0:ikq1YiKphuyv9BNA0PdW6hIyIi5jMBifZlU=
