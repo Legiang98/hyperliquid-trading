@@ -39,6 +39,7 @@ async function hyperLiquidWebhook(
 
         // Step 2: Validate signal
         const validation = await validateSignal(signal, context);
+        context.log("Validation result:", JSON.stringify(validation));
         if (!validation.isValid) {
             // context.log("Signal validation failed:", validation.reason);
             return {
@@ -79,16 +80,12 @@ async function hyperLiquidWebhook(
         let orderResult;
 
         if (signal.signal === "entry") {
-            context.log("Building order for entry signal");
             const orderRequest = await buildOrder(signal, context);
-            context.log("Executing order request:", JSON.stringify(orderRequest));
             orderResult = await executeOrder(orderRequest, signal, context);
         } else if (signal.signal === "exit") {
-            context.log("Executing exit order");
             orderResult = await executeOrder(null, signal, context);
         } else if (signal.signal === "update_stop") {
             // TODO: Implement stop loss update
-            context.log("Stop loss update not yet implemented");
             return {
                 status: 200,
                 jsonBody: {
@@ -98,14 +95,7 @@ async function hyperLiquidWebhook(
                 }
             };
         } else {
-            context.log("Unknown signal type:", signal.signal);
-            return {
-                status: 400,
-                jsonBody: {
-                    success: false,
-                    message: `Unknown signal type: ${signal.signal}`
-                }
-            };
+            throw new Error("Unknown signal type");
         }
 
         // // Step 5: Log trade
@@ -123,15 +113,15 @@ async function hyperLiquidWebhook(
         const functionAppDomain = process.env.FUNCTION_APP_DOMAIN || "http://localhost:7071"
         context.log(`Sending Telegram message via ${functionAppDomain}/api/telegrambot`);
         context.log(msg);
-        try {
-            await fetch(`${functionAppDomain}/api/telegrambot`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: msg, parse_mode: "Markdown" })
-            });
-        } catch (err) {
-            context.error("Failed to send Telegram message:", err);
-        } 
+        // try {
+        //     await fetch(`${functionAppDomain}/api/telegrambot`, {
+        //         method: "POST",
+        //         headers: { "Content-Type": "application/json" },
+        //         body: JSON.stringify({ message: msg, parse_mode: "Markdown" })
+        //     });
+        // } catch (err) {
+        //     context.error("Failed to send Telegram message:", err);
+        // } 
 
     } catch (error) {
         context.error("Error processing webhook:", error);
@@ -140,7 +130,6 @@ async function hyperLiquidWebhook(
             jsonBody: {
                 success: false,
                 error: "Internal server error",
-                // message: error instanceof Error ? error.message : "Unknown error",
                 timestamp: new Date().toISOString()
             }
         };

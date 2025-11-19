@@ -19,7 +19,7 @@ export interface WebhookPayload {
 export interface TradingSignal {
     symbol: string;
     order: "buy" | "sell";
-    price: number | "MARKET";
+    price: number;
     signal: "entry" | "exit" | "update_stop";
     stopLoss?: number;
     orderId?: string;
@@ -46,4 +46,10 @@ export interface ValidationResult {
     isValid: boolean;
     reason?: string;
     skipped?: boolean;
+}
+
+export interface AssetMeta {
+    [symbol: string]: {
+        szDecimals: number;
+    };
 }

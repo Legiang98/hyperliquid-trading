@@ -37,7 +37,7 @@ export async function parseWebhook(payload: WebhookPayload): Promise<TradingSign
             return {
                 symbol,
                 order,
-                price: payload.entry || "MARKET",
+                price: payload.entry,
                 signal,
                 stopLoss: payload.stopLoss,
             };

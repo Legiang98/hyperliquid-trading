@@ -47,6 +47,26 @@ async function validateSymbol(
     return symbolExists;
 }
 
+async function validateStopLoss(
+    signal: TradingSignal,
+    context?: InvocationContext
+): Promise<boolean> {
+    context?.log(`Validating stop loss for ${signal.symbol}: price=${signal.price}, stopLoss=${signal.stopLoss}, order=${signal.order}`);
+    if (signal.stopLoss === undefined) {
+        return false;
+    }
+
+    if (signal.order === "buy" && signal.stopLoss >= signal.price) {
+        return false;
+    }
+
+    if (signal.order === "sell" && signal.stopLoss <= signal.price) {
+        return false;
+    }
+
+    return true;
+}
+
 // TODO: validate leverage level and isolate/cross mode
 
 /**
@@ -60,6 +80,15 @@ export async function validateSignal(signal: TradingSignal, context?: any): Prom
             return {
                 isValid: false,
                 reason: `Invalid symbol: ${signal.symbol} not found on HyperLiquid`
+            };
+        }
+
+        const stoplossValid = await validateStopLoss(signal, context);
+        context.log(`Stop loss validation for ${signal.symbol}: ${stoplossValid}`);
+        if (!stoplossValid) {
+            return {
+                isValid: false,
+                reason: `Invalid stop loss for ${signal.symbol}`
             };
         }
 
