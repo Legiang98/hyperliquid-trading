@@ -2,15 +2,22 @@
  * Main entry point — checks Gmail for TradingView alerts
  * and sends them to your webhook.
  */
+
+// function getLabelNames(thread) {
+//   return thread.getLabels().map(label => label.getName());
+// }
+
 function checkTradingViewEmails() {
   const PROCESSED_LABEL = 'Processed-TDV';
   const label = GmailApp.createLabel(PROCESSED_LABEL);
   const query = 'from:noreply@tradingview.com newer_than:7d';
-  const threads = GmailApp.search(query, 0, 15); // limit to 15 threads to avoid timeouts
+  const threads = GmailApp.search(query, 0, 1); // limit to 15 threads to avoid timeouts
   console.log(`Found ${threads.length} threads matching search criteria.`);
 
   threads.forEach((thread) => {
-    if (thread.getLabels() === PROCESSED_LABEL) {
+    const labels = thread.getLabels();
+    const labelNames = labels.map(label => label.getName());
+    if (labelNames.includes(PROCESSED_LABEL)) {
       console.log("Skipping (already processed).");
       return;
     }
@@ -27,7 +34,7 @@ function checkTradingViewEmails() {
 
       const success = sendToWebhook(jsonData);
       if (success) {
-        // thread.addLabel(label);
+        thread.addLabel(label);
         console.log("Message labeled as processed.");
       }
     });
