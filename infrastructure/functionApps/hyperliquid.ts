@@ -83,7 +83,6 @@ const hyperliquidWorkspace = new azure_native.operationalinsights.Workspace("hyp
     }
 });
 
-// Create Application Insights for monitoring
 const hyperliquidAppInsights = new applicationinsights.Component("hyperliquid-insights", {
     resourceName: `hyperliquid-${environment}-insights`,
     resourceGroupName: hyperliquidResourceGroup.name,
@@ -97,7 +96,6 @@ const hyperliquidAppInsights = new applicationinsights.Component("hyperliquid-in
     }
 });
 
-// Create Function App for Hyperliquid
 const hyperliquidFunctionApp = new web.WebApp("hyperliquid-function", {
     name: `hyperliquid-${environment}-func`,
     resourceGroupName: hyperliquidResourceGroup.name,
@@ -105,13 +103,7 @@ const hyperliquidFunctionApp = new web.WebApp("hyperliquid-function", {
     serverFarmId: hyperliquidAppServicePlan.id,
     kind: "functionapp,linux",
     siteConfig: {
-        appSettings: [
-
-            // {
-            //     name: "FUNCTION_APP_DOMAIN",
-            //     value: pulumi.interpolate`https://${hyperliquidFunctionApp.defaultHostName}`
-            // }
-        ],
+        appSettings: [],
         cors: {
             allowedOrigins: ["*"]
         },
@@ -132,6 +124,7 @@ const hyperliquidAppSettings = new web.WebAppApplicationSettings("hyperliquid-ap
     name: hyperliquidFunctionApp.name,
     resourceGroupName: hyperliquidResourceGroup.name,
     properties: {
+        // Azure function app settings
         FUNCTION_APP_DOMAIN: pulumi.interpolate`https://${hyperliquidFunctionApp.defaultHostName}`,
         AzureWebJobsStorage: hyperliquidStorageConnectionString,
         WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: hyperliquidStorageConnectionString,
@@ -142,10 +135,17 @@ const hyperliquidAppSettings = new web.WebAppApplicationSettings("hyperliquid-ap
         WEBSITE_RUN_FROM_PACKAGE: "1",
         APPINSIGHTS_INSTRUMENTATIONKEY: hyperliquidAppInsights.instrumentationKey,
         APPLICATIONINSIGHTS_CONNECTION_STRING: hyperliquidAppInsights.connectionString,
+
+        // HyperLiquid Settings
         HYPERLIQUID_TESTNET: config.get("hyperliquid-testnet") || "true",
         HYPERLIQUID_PRIVATE_KEY: config.requireSecret("hyperliquid-private-key"),
+
+        // Telegram Notifications
         TELEGRAM_CHAT_ID: config.requireSecret("telegram_chat_id"),
-        TELEGRAM_BOT_TOKEN: config.requireSecret("telegram_bot_token")
+        TELEGRAM_BOT_TOKEN: config.requireSecret("telegram_bot_token"),
+
+        // Order configuration
+        FIX_STOPLOSS: config.get("fix-stoploss"),
     }
 });
 

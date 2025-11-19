@@ -2,15 +2,12 @@ secretsprovider: azurekeyvault://giangiacdev.vault.azure.net/keys/payroll
 encryptedkey: S2dqOTNIQWl2SEttYjIxektTS2dkRVRjME1jX0RwQkUwVmYyajZsbkszMnZTdkhzNWUtbW9DeUdoVGFmV1F1VEMySXpHeGQ0Z0JHQ0dQTnhmYXdFdWxqeExWQ0pHRjFwRDZqT1U4NE44b2hfY29nZ2lpSmttb0praEQxaXNUMS14a2hhOUg3ckxWRGRJcC1RaVZyZWx2ZFVsWHNCaE9GdUJsT0dPZWdNckhUY1BUbUxZSXRrdlpza2hwMktBcnFFMGM4czdzOG1mMnY4MTF5Z2FPYjJPa2xKVURwdGxGWHhNYTZLWVhXX3pTNkpYR0phM1llal9mTkpwTTlQdmFFTEVQQmtNLWJCQ1U1SUR1Tkhldm1YR2xZUW1MbEwybGVKdjZNVnMxS0s4MzJ5dldNZDhSMHVKdlN4MjlGVFZydTE2T05Eb2hWU0dxTnlXY2dKNFhDc093
 config:
   azure-native:location: Southeast Asia
-  trading-infra:location:
-    description: Azure region for deployment
-    default: "Southeast Asia"
-  trading-infra:hyperliquid-testnet:
-    description: Whether to use Hyperliquid testnet
-    default: "true"
+  trading-infra:location: "Southeast Asia"
+  trading-infra:hyperliquid-testnet: true
   trading-infra:hyperliquid-private-key:
-    description: Hyperliquid private key (secret)
+    secure: v1:MIJUwT3JWrTtQDax:Li0jQwXfoZKaseDaCeVi3Zr9BHJqg4CVBGToZVDDs4OY7CY/qzHh2vCjlGjapdIx/3Ng8Wm8D9F41BTXx/5Mz1nEvWzduZ3/ao1oVJgWs3bpeQ==
   trading-infra:telegram_bot_token:
-      secure: v1:+18u92CwJgCSeep2:k/iBGojXCkj19do13NjKCBqJ+JWw4yRkNuEMPGtq3ccpKIbZbrNBfac1AVPRuoNnRjcEa/8nzdo0CRZ1nLA=
+    secure: v1:+18u92CwJgCSeep2:k/iBGojXCkj19do13NjKCBqJ+JWw4yRkNuEMPGtq3ccpKIbZbrNBfac1AVPRuoNnRjcEa/8nzdo0CRZ1nLA=
   trading-infra:telegram_chat_id:
-      secure: v1:2WrffThaYL3CTvr0:ikq1YiKphuyv9BNA0PdW6hIyIi5jMBifZlU=
+    secure: v1:2WrffThaYL3CTvr0:ikq1YiKphuyv9BNA0PdW6hIyIi5jMBifZlU=
+  trading-infra:fix-stoploss: "5"
