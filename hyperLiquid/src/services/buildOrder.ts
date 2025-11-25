@@ -78,7 +78,7 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
 
     const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss);
     const normalizedSize = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
-    const normalizedPrice = normalizePrice(signal.price,szDecimalsSymbol);
+    const normalizedPrice = normalizePrice(marketPrice,szDecimalsSymbol);
     const normalizedStopLoss = normalizePrice(signal.stopLoss!, szDecimalsSymbol);
 
     context.log(`Normalized price for ${signal.symbol}: ${normalizedPrice}`);

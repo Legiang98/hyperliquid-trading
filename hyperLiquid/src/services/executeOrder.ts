@@ -42,36 +42,7 @@ export async function executeOrder(
         
         const assetId = meta.universe.indexOf(assetInfo);
         context.log('Signal:', signal);
-        // Handle exit signal (close position)
-        // if (signal.signal === "exit") {
-        //     if (context) {
-        //         context.log(`Closing position for ${signal.symbol}`);
-        //     }
-            
-        //     const closeResult = await exchangeClient.order({
-        //         orders: [{
-        //             a: assetId,
-        //             b: signal.order === "buy",
-        //             p: "0", // Market order
-        //             s: "0", // Close all
-        //             r: true, // Reduce only
-        //             t: { limit: { tif: "Ioc" } }
-        //         }],
-        //         grouping: "na"
-        //     });
 
-        //     if (context) {
-        //         context.log("Close position result:", JSON.stringify(closeResult));
-        //     }
-
-        //     return {
-        //         success: true,
-        //         message: "Position closed successfully",
-        //         orderId: JSON.stringify(closeResult)
-        //     };
-        // }
-
-        // Handle entry signal (open position)
         if (!orderRequest) {
             throw new Error("Order request is required for entry signal");
         }
@@ -86,7 +57,7 @@ export async function executeOrder(
             orders: [{
                 a: assetId,
                 b: orderRequest.order === "buy" ? true : false,
-                p: orderRequest.price.toString(),
+                p: orderRequest.price,
                 s: size,
                 r: false,
                 t: { 
