@@ -92,7 +92,7 @@ export async function validateSignal(signal: TradingSignal, context?: any): Prom
             };
         }
 
-        const userAddress = process.env.HYPERLIQUID_USER_ADDRESS || "";
+        const userAddress = process.env.HYPERLIQUID_USER_ADDRESS;
         if (userAddress) {
             const hasPosition = await checkExistingPosition(signal, userAddress, context);
             

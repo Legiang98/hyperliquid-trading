@@ -11,3 +11,4 @@ config:
   trading-infra:telegram_chat_id:
     secure: v1:2WrffThaYL3CTvr0:ikq1YiKphuyv9BNA0PdW6hIyIi5jMBifZlU=
   trading-infra:fix-stoploss: "5"
+  trading-infra:hyperliquid-user-address: "0x9074d59bB220E8d0135e522c03769991698aEF17"

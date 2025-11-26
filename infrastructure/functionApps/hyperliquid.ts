@@ -138,6 +138,7 @@ const hyperliquidAppSettings = new web.WebAppApplicationSettings("hyperliquid-ap
 
         // HyperLiquid Settings
         HYPERLIQUID_TESTNET: config.get("hyperliquid-testnet") || "true",
+        HYPERLIQUID_USER_ADDRESS: config.require("hyperliquid-user-address"),
         HYPERLIQUID_PRIVATE_KEY: config.requireSecret("hyperliquid-private-key"),
 
         // Telegram Notifications

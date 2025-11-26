@@ -1,1 +1,0 @@
-{"pair":"BTCUSDT","action":"BUY","entry":103391.1,"stopLoss":102736.7693483895}
