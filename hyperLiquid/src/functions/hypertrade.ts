@@ -64,15 +64,6 @@ async function hyperLiquidWebhook(
             };
         }
 
-        // else {
-        //     return {
-        //         status: 200,
-        //         jsonBody: {
-        //             success: true,
-        //             message: "Signal is valid and ready for processing"
-        //         }
-        //     }
-        // }
 
         context.log("Signal validated successfully");
 

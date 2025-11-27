@@ -1,6 +1,5 @@
 import { services } from "../src/services";
 import type { TradingSignal } from "../src/types"; // Adjust path if needed
-
 const buildOrder = services.buildOrder;
 
 // Example signal input for testing

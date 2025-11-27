@@ -34,6 +34,21 @@ function normalizePrice(price: number, szDecimals: number): number {
     return normalized;
 }
 
+/*
+* Validate the stop loss price with liquidation price
+*/
+function validateLiquidationPrice(
+    symbol: string,
+    stopLoss: number,
+    assetMeta: AssetMeta
+): boolean {
+    // Placeholder logic for liquidation price validation
+    // In real implementation, fetch the actual liquidation price from exchange data
+    const mockLiquidationPrice = stopLoss * 0.95; // Example: 5% below stop loss
+
+    return stopLoss > mockLiquidationPrice;
+}
+
 
 
 /**
@@ -49,6 +64,8 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     
     const allMids = await infoClient.allMids();
     const marketPrice = parseFloat(allMids[signal.symbol] || "0");
+    // const leverage = await infoClient.activeAssetData({ asset: signal.symbol });
+    const levarage = await infoClient.activeAssetData({ asset: "BTC" })
     if (!marketPrice) {
         throw new Error(`Unable to fetch market price for ${signal.symbol}`);
     }
@@ -81,7 +98,7 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     const normalizedPrice = normalizePrice(marketPrice,szDecimalsSymbol);
     const normalizedStopLoss = normalizePrice(signal.stopLoss!, szDecimalsSymbol);
 
-    context.log(`Normalized price for ${signal.symbol}: ${normalizedPrice}`);
+    // context.log(`Normalized price for ${signal.symbol}: ${normalizedPrice}`);
 
     return {
         symbol: signal.symbol,
