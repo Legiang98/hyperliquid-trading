@@ -65,6 +65,7 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     const allMids = await infoClient.allMids();
     const marketPrice = parseFloat(allMids[signal.symbol] || "0");
     // const leverage = await infoClient.activeAssetData({ asset: signal.symbol });
+    // Debug
     const levarage = await infoClient.activeAssetData({ asset: "BTC" })
     if (!marketPrice) {
         throw new Error(`Unable to fetch market price for ${signal.symbol}`);
