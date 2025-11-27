@@ -15,6 +15,8 @@ function normalizeOrderSize(
  * @param price The original price
  * @param szDecimals Size decimals of the asset
  * @returns Normalized price
+ * This part is for verifying the price with commas and ensuring it fits exchange requirements 
+ * e.g: 3480.2567  ->  3480.25
  */
 function normalizePrice(price: number, szDecimals: number): number {
     const MAX_DECIMALS = 6;
@@ -37,16 +39,21 @@ function normalizePrice(price: number, szDecimals: number): number {
 /*
 * Validate the stop loss price with liquidation price
 */
-function validateLiquidationPrice(
-    symbol: string,
-    stopLoss: number,
-    assetMeta: AssetMeta
+function validateStoploss(
+    order: "buy" | "sell",
+    price: number,
+    currentLeverage: number,
+    positionSize: number,
+    stopLossPrice: number,
 ): boolean {
-    // Placeholder logic for liquidation price validation
-    // In real implementation, fetch the actual liquidation price from exchange data
-    const mockLiquidationPrice = stopLoss * 0.95; // Example: 5% below stop loss
-
-    return stopLoss > mockLiquidationPrice;
+    const margin = (price * positionSize) / currentLeverage;
+    if (order === "buy") {
+        const liquidationPrice = price - (margin / positionSize);
+        return stopLossPrice > liquidationPrice;
+    } else {
+        const liquidationPrice = price + (margin / positionSize);
+        return stopLossPrice < liquidationPrice;
+    }
 }
 
 
@@ -56,22 +63,61 @@ function validateLiquidationPrice(
  * Calculates position size based on fixed USD amount
  */
 export async function buildOrder(signal: TradingSignal, context?: any): Promise<OrderRequest> {
+    
+    /*
+    * Input for the buildOrder function
+    */
     const fixedUsdAmount = parseFloat(process.env.FIX_STOPLOSS || "5");
+    const userAddress = process.env.HYPERLIQUID_USER_ADDRESS;
+    
+    if (!userAddress) {
+        throw new Error("HYPERLIQUID_USER_ADDRESS not configured");
+    }
+    
+    /*
+    * Initialize connection and info client
+    */
     const transport = new hl.HttpTransport({
         isTestnet: process.env.HYPERLIQUID_TESTNET === "true"
     });
     const infoClient = new hl.InfoClient({ transport });
     
+    /* Get all pairs and their prices */
     const allMids = await infoClient.allMids();
     const marketPrice = parseFloat(allMids[signal.symbol] || "0");
-    // const leverage = await infoClient.activeAssetData({ asset: signal.symbol });
-    // Debug
-    const levarage = await infoClient.activeAssetData({ asset: "BTC" })
+    
     if (!marketPrice) {
         throw new Error(`Unable to fetch market price for ${signal.symbol}`);
     }
+    
+    /* Get leverage information for the current symbol */
+    const assetData = await infoClient.activeAssetData({ 
+        user: userAddress as `0x${string}`,
+        coin: signal.symbol 
+    });
 
-    // Fetch meta data (contains szDecimals for each symbol)
+    /*
+    *  e.g; Leverage for BTC: { type: 'isolated', value: 8, rawUsd: '-207.59043' }
+    */
+    const leverage = assetData.leverage;
+    const exchangeClient = new hl.ExchangeClient({
+        wallet: process.env.HYPERLIQUID_PRIVATE_KEY!,
+        transport
+    });
+
+    /* Switch to isolated mode if current leverage is cross */
+    if (leverage.type == "cross") {
+        await exchangeClient.updateLeverage({
+            isCross: false,
+            asset: signal.symbol,
+            leverage: leverage.value
+        });
+    }
+    
+    /* 
+    * Fetch meta data (contains szDecimals for each symbol) 
+    * for round the prices
+    */
     const metaResponse = await infoClient.meta();
     const metaMap: Record<string, { szDecimals: number }> = {};
 
@@ -92,19 +138,30 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     if (szDecimalsSymbol === undefined) {
         throw new Error(`Missing szDecimals for symbol ${signal.symbol}`);
     }
-
-
     const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss);
-    const normalizedSize = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
+    const normalizedQuantity = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
     const normalizedPrice = normalizePrice(marketPrice,szDecimalsSymbol);
     const normalizedStopLoss = normalizePrice(signal.stopLoss!, szDecimalsSymbol);
 
-    // context.log(`Normalized price for ${signal.symbol}: ${normalizedPrice}`);
+    /*
+    * Validate stop loss with liquidation price
+    */
+    const isStoplossValid = validateStoploss(
+        signal.order,
+        marketPrice,
+        leverage.value,
+        normalizedQuantity,
+        signal.stopLoss!
+    );
+
+    if (!isStoplossValid) {
+        throw new Error(`Invalid stop loss price ${signal.stopLoss} for ${signal.symbol} with current leverage ${leverage.value}`);
+    }
 
     return {
         symbol: signal.symbol,
         order: signal.order,
-        size: normalizedSize,       
+        quantity: normalizedQuantity,       
         price: normalizedPrice,
         stopLoss: normalizedStopLoss
     };

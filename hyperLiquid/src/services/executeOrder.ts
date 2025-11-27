@@ -32,7 +32,6 @@ export async function executeOrder(
             transport
         });
 
-        // Get asset metadata to find the asset ID and size decimals
         const infoClient = new hl.InfoClient({ transport });
         const meta = await infoClient.meta();
         const assetInfo = meta.universe.find(asset => asset.name === signal.symbol);
@@ -41,18 +40,19 @@ export async function executeOrder(
         }
         
         const assetId = meta.universe.indexOf(assetInfo);
-        context.log('Signal:', signal);
+        // context.log('Signal:', signal);
+        console.log('Signal:', signal);
 
         if (!orderRequest) {
             throw new Error("Order request is required for entry signal");
         }
 
-        if (context) {
-            context.log(`Placing ${orderRequest.order} order for ${orderRequest.symbol}`);
-        }
+        // if (context) {
+            // context.log(`Placing ${orderRequest.order} order for ${orderRequest.symbol}`);
+        // }
 
         const szDecimals = assetInfo.szDecimals;
-        const size = orderRequest.size.toFixed(szDecimals);
+        const size = orderRequest.quantity.toFixed(szDecimals);
         const orderResult = await exchangeClient.order({
             orders: [{
                 a: assetId,
@@ -71,10 +71,6 @@ export async function executeOrder(
             }],
             grouping: "na"
         });
-
-        if (context) {
-            context.log("Order result:", JSON.stringify(orderResult));
-        }
 
         // STOPLOSS ORDER
         if (orderRequest.stopLoss) {

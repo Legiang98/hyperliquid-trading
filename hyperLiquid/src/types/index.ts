@@ -30,8 +30,15 @@ export interface TradingSignal {
 export interface OrderRequest {
     symbol: string;
     order: "buy" | "sell";
-    size: number;
+    quantity: number;
     price: number | "MARKET";
+    stopLoss?: number;
+}
+
+export interface closeOrderRequest {
+    symbol: string;
+    action: "EXIT";
+    position: "BUY" | "SELL";
     stopLoss?: number;
 }
 
