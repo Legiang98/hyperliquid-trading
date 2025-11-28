@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { services } from "../services/index";
+import { trailingStoploss } from "../services/trailingStop";
 
 const { 
     parseWebhook,
@@ -74,17 +75,8 @@ async function hyperLiquidWebhook(
             const orderRequest = await buildOrder(signal, context);
             orderResult = await executeOrder(orderRequest, signal, context);
         } else if (signal.signal === "exit") {
-            orderResult = await executeOrder(null, signal, context);
-        } else if (signal.signal === "update_stop") {
-            // TODO: Implement stop loss update
-            return {
-                status: 200,
-                jsonBody: {
-                    success: false,
-                    skipped: true,
-                    reason: "Stop loss update not yet implemented"
-                }
-            };
+            // Use closeOrder to close the entire position
+            orderResult = await trailingStoploss(signal, context);
         } else {
             throw new Error("Unknown signal type");
         }

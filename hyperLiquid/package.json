@@ -16,6 +16,7 @@
     "@nktkas/hyperliquid": "^0.27.1"
   },
   "devDependencies": {
+    "@types/dotenv": "^6.1.1",
     "@types/node": "22.x",
     "azure-functions-core-tools": "^4.x",
     "rimraf": "^5.0.0",
