@@ -1,4 +1,4 @@
-import { closeOrderRequest, OrderResult } from "../types";
+import { trailingStoplossRequest, OrderResult } from "../types";
 import * as hl from "@nktkas/hyperliquid";
 
 /**
@@ -6,7 +6,7 @@ import * as hl from "@nktkas/hyperliquid";
  * This function modifies the stop loss order to trail the current price
  */
 export async function trailingStoploss(
-    signal: closeOrderRequest,
+    signal: trailingStoplossRequest,
     context?: any
 ): Promise<OrderResult> {
     try {

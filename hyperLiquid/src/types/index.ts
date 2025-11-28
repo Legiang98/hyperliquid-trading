@@ -35,7 +35,7 @@ export interface OrderRequest {
     stopLoss?: number;
 }
 
-export interface closeOrderRequest {
+export interface trailingStoplossRequest {
     symbol: string;
     action: "EXIT";
     position: "BUY" | "SELL";

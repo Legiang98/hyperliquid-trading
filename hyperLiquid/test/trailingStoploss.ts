@@ -1,5 +1,5 @@
 import { trailingStoploss } from "../src/services/trailingStop";
-import type { closeOrderRequest } from "../src/types";
+import type { trailingStoplossRequest } from "../src/types";
 
 // Set environment variables for testing
 process.env.HYPERLIQUID_TESTNET = "true";
@@ -10,7 +10,7 @@ const localSettings = require("./local.settings.json");
 process.env.HYPERLIQUID_PRIVATE_KEY = localSettings.Values.HYPERLIQUID_PRIVATE_KEY;
 
 // Test signal for updating trailing stop on a BUY position (LONG)
-const buySignal: closeOrderRequest = {
+const buySignal: trailingStoplossRequest = {
     symbol: "BTC",
     action: "EXIT",
     position: "BUY",
