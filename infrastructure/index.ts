@@ -4,4 +4,4 @@ import * as storage from "@pulumi/azure-native/storage";
 
 // Import Hyperliquid function app infrastructure
 import "./functionApps/hyperliquid";
-
+import "./functionApps/postgresql"
