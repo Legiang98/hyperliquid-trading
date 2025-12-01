@@ -2,52 +2,49 @@
  * Type definitions for HyperLiquid trading webhook
  */
 
+/**
+ * @typedef {Object} WebhookPayload
+ * @property {string} symbol
+ * @property {"ENTRY"|"EXIT"|"UPDATE_STOP"} action
+ * @property {"BUY"|"SELL"} type
+ * @property {number} price
+ * @property {number} stopLoss
+ *
+ * @example
+ * {
+ *   "symbol": "BTC",
+ *   "action": "ENTRY",
+ *   "type": "BUY",
+ *   "price": 95000,
+ *   "stopLoss": 94000
+ * }
+ */
 export interface WebhookPayload {
-    subject?: string;
-    body?: string;
-    receivedAt?: string;
-    pair: string;
+    symbol: string;
     action: string;
-    entry?: number;
-    stopLoss?: number;
-    orderId?: string;
-    position?: string;
-    reason?: string;
-}
-
-
-export interface TradingSignal {
-    symbol: string;
-    order: "buy" | "sell";
+    type: string;
     price: number;
-    signal: "entry" | "exit" | "update_stop";
     stopLoss?: number;
+    strategy: string;
     orderId?: string;
-    reason?: string;
-}
-
-
-export interface OrderRequest {
-    symbol: string;
-    order: "buy" | "sell";
-    quantity: number;
-    price: number | "MARKET";
-    stopLoss?: number;
-}
-
-export interface trailingStoplossRequest {
-    symbol: string;
-    action: "EXIT";
-    position: "BUY" | "SELL";
-    stopLoss?: number;
+    quantity?: number; // Calculated by buildOrder
 }
 
 export interface OrderResult {
     success: boolean;
     orderId?: string;
+    dbOrderId?: string;
     message?: string;
     error?: string;
 }
+
+// export interface trailingStoploss {
+//     symbol: string;
+//     action: "EXIT";
+//     type: "BUY" | "SELL";
+//     stopLoss?: number;
+//     strategy: string;
+// }
 
 export interface ValidationResult {
     isValid: boolean;

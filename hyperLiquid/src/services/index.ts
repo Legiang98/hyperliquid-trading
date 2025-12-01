@@ -3,7 +3,8 @@ import { validateSignal } from './validateSignal';
 import { buildOrder } from './buildOrder';
 import { executeOrder } from './executeOrder';
 import { logTrade } from './logTrade';
-import { trailingStoploss } from './trailingStop';
+import { closeOrder } from './closeOrder';
+import { updateStopLoss } from './trailingStoploss';
 
 export const services = {
     parseWebhook,
@@ -11,15 +12,16 @@ export const services = {
     buildOrder,
     executeOrder,
     logTrade,
-    trailingStoploss
+    closeOrder,
+    updateStopLoss
 }
 
 /**
  * Export individual services for direct imports if needed
  */
-export { parseWebhook, validateSignal, buildOrder, executeOrder, logTrade, trailingStoploss };
+export { parseWebhook, validateSignal, buildOrder, executeOrder, logTrade, closeOrder, updateStopLoss };
 
 /**
  * Export types
  */
-export type { WebhookPayload, TradingSignal, ValidationResult, OrderResult } from '../types';
+export type { WebhookPayload, ValidationResult, OrderResult } from '../types';
