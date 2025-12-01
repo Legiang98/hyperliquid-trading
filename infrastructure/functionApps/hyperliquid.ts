@@ -4,137 +4,136 @@ import * as resources from "@pulumi/azure-native/resources";
 import * as storage from "@pulumi/azure-native/storage";
 import * as web from "@pulumi/azure-native/web";
 import * as applicationinsights from "@pulumi/azure-native/applicationinsights";
+import {
+    postgresHost,
+    postgresPort,
+    postgresDatabase,
+    postgresUsername,
+    postgresPassword
+} from "./postgresql";
 
-// Configuration
 const config = new pulumi.Config();
 const location = "southeastasia";
 const environment = pulumi.getStack();
 
-// Create Resource Group for Hyperliquid function app
-const hyperliquidResourceGroup = new resources.ResourceGroup("hyperliquid-rg", {
-    resourceGroupName: `hyperliquid-${environment}-rg`,
-    location: location,
-    tags: {
-        Environment: environment,
-        Project: "HyperliquidTrading",
-        ManagedBy: "Pulumi"
-    }
+const commonTags = {
+    Environment: environment,
+    Project: "HyperliquidTrading",
+    ManagedBy: "Pulumi"
+};
+
+export const resourceGroup = new resources.ResourceGroup("hyperliquid-rg", {
+    resourceGroupName: "hyperliquid-dev-rg",
+    location,
+    tags: commonTags
 });
 
-// Create Storage Account for Hyperliquid Function App
-const hyperliquidStorageAccount = new storage.StorageAccount("hyperliquidsa", {
+const storageAccount = new storage.StorageAccount("hyperliquidsa", {
     accountName: `hyperliquid${environment}sa`,
-    resourceGroupName: hyperliquidResourceGroup.name,
-    location: hyperliquidResourceGroup.location,
-    sku: {
-        name: storage.SkuName.Standard_LRS
-    },
+    resourceGroupName: resourceGroup.name,
+    location: resourceGroup.location,
+    sku: { name: storage.SkuName.Standard_LRS },
     kind: storage.Kind.StorageV2,
     allowBlobPublicAccess: false,
     minimumTlsVersion: storage.MinimumTlsVersion.TLS1_2,
-    tags: {
-        Environment: environment,
-        Project: "HyperliquidTrading"
-    }
+    tags: commonTags
 });
 
-// Create App Service Plan for Hyperliquid Function App
-const hyperliquidAppServicePlan = new web.AppServicePlan("hyperliquid-plan", {
+const appServicePlan = new web.AppServicePlan("hyperliquid-plan", {
     name: `hyperliquid-${environment}-plan`,
-    resourceGroupName: hyperliquidResourceGroup.name,
-    location: hyperliquidResourceGroup.location,
-    sku: {
-        name: "Y1",
-        tier: "Dynamic"
-    },
+    resourceGroupName: resourceGroup.name,
+    location: resourceGroup.location,
+    sku: { name: "Y1", tier: "Dynamic" },
     kind: "functionapp,linux",
-    tags: {
-        Environment: environment,
-        Project: "HyperliquidTrading"
-    }
+    tags: commonTags
 });
 
-// Get storage account connection string
-const hyperliquidStorageConnectionString = pulumi.all([
-    hyperliquidResourceGroup.name,
-    hyperliquidStorageAccount.name
-]).apply(([resourceGroupName, storageAccountName]) =>
-    storage.listStorageAccountKeysOutput({
-        resourceGroupName: resourceGroupName,
-        accountName: storageAccountName
-    })
-).apply(keys => {
-    const primaryKey = keys.keys[0].value;
-    return pulumi.interpolate`DefaultEndpointsProtocol=https;AccountName=${hyperliquidStorageAccount.name};AccountKey=${primaryKey};EndpointSuffix=core.windows.net`;
-});
+const storageConnectionString = pulumi
+    .all([resourceGroup.name, storageAccount.name])
+    .apply(([resourceGroupName, storageAccountName]) =>
+        storage.listStorageAccountKeysOutput({ resourceGroupName, accountName: storageAccountName })
+    )
+    .apply(keys => {
+        const primaryKey = keys.keys[0].value;
+        return pulumi.interpolate`DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${primaryKey};EndpointSuffix=core.windows.net`;
+    });
 
-// Workspace 
-const hyperliquidWorkspace = new azure_native.operationalinsights.Workspace("hyperliquid-workspace", {
-    resourceGroupName: hyperliquidResourceGroup.name,
+const workspace = new azure_native.operationalinsights.Workspace("hyperliquid-workspace", {
+    resourceGroupName: resourceGroup.name,
     workspaceName: `hyperliquid-${environment}-workspace`,
-    location: hyperliquidResourceGroup.location,
-    sku: {
-        name: "PerGB2018"
-    },
+    location: resourceGroup.location,
+    sku: { name: "PerGB2018" },
     retentionInDays: 30,
-    tags: {
-        Environment: environment,
-        Project: "HyperliquidTrading"
-    }
+    tags: commonTags
 });
 
-const hyperliquidAppInsights = new applicationinsights.Component("hyperliquid-insights", {
+const appInsights = new applicationinsights.Component("hyperliquid-insights", {
     resourceName: `hyperliquid-${environment}-insights`,
-    resourceGroupName: hyperliquidResourceGroup.name,
-    location: hyperliquidResourceGroup.location,
+    resourceGroupName: resourceGroup.name,
+    location: resourceGroup.location,
     applicationType: applicationinsights.ApplicationType.Web,
-    workspaceResourceId: hyperliquidWorkspace.id,
+    workspaceResourceId: workspace.id,
     kind: "web",
-    tags: {
-        Environment: environment,
-        Project: "HyperliquidTrading"
-    }
+    tags: commonTags
 });
 
-const hyperliquidFunctionApp = new web.WebApp("hyperliquid-function", {
+const functionApp = new web.WebApp("hyperliquid-function", {
     name: `hyperliquid-${environment}-func`,
-    resourceGroupName: hyperliquidResourceGroup.name,
-    location: hyperliquidResourceGroup.location,
-    serverFarmId: hyperliquidAppServicePlan.id,
+    resourceGroupName: resourceGroup.name,
+    location: resourceGroup.location,
+    serverFarmId: appServicePlan.id,
     kind: "functionapp,linux",
+    httpsOnly: true,
     siteConfig: {
         appSettings: [],
-        cors: {
-            allowedOrigins: ["*"]
-        },
+        cors: { allowedOrigins: ["*"] },
         use32BitWorkerProcess: false,
         ftpsState: web.FtpsState.FtpsOnly,
         minTlsVersion: "1.2",
         http20Enabled: true,
-        nodeVersion: "~22"
+        nodeVersion: "~22",
+        ipSecurityRestrictions: [
+            {
+                ipAddress: "52.89.214.238/32",
+                action: "Allow",
+                priority: 100,
+                name: "TradingView-1"
+            },
+            {
+                ipAddress: "34.212.75.30/32",
+                action: "Allow",
+                priority: 101,
+                name: "TradingView-2"
+            },
+            {
+                ipAddress: "54.218.53.128/32",
+                action: "Allow",
+                priority: 102,
+                name: "TradingView-3"
+            },
+            {
+                ipAddress: "52.32.178.7/32",
+                action: "Allow",
+                priority: 103,
+                name: "TradingView-4"
+            }
+        ]
     },
-    httpsOnly: true,
-    tags: {
-        Environment: environment,
-        Project: "HyperliquidTrading"
-    }
+    tags: commonTags
 });
 
-const hyperliquidAppSettings = new web.WebAppApplicationSettings("hyperliquid-app-settings", {
-    name: hyperliquidFunctionApp.name,
-    resourceGroupName: hyperliquidResourceGroup.name,
+const appSettings = new web.WebAppApplicationSettings("hyperliquid-app-settings", {
+    name: functionApp.name,
+    resourceGroupName: resourceGroup.name,
     properties: {
         // Azure function app settings
-        FUNCTION_APP_DOMAIN: pulumi.interpolate`https://${hyperliquidFunctionApp.defaultHostName}`,
-        AzureWebJobsStorage: hyperliquidStorageConnectionString,
-        WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: hyperliquidStorageConnectionString,
+        AzureWebJobsStorage: storageConnectionString,
+        WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: storageConnectionString,
         WEBSITE_CONTENTSHARE: pulumi.interpolate`hyperliquid-${environment}-func-content`,
         FUNCTIONS_EXTENSION_VERSION: "~4",
         FUNCTIONS_WORKER_RUNTIME: "node",
         WEBSITE_NODE_DEFAULT_VERSION: "~22",
         WEBSITE_RUN_FROM_PACKAGE: "1",
-        APPINSIGHTS_INSTRUMENTATIONKEY: hyperliquidAppInsights.instrumentationKey,
-        APPLICATIONINSIGHTS_CONNECTION_STRING: hyperliquidAppInsights.connectionString,
 
         // HyperLiquid Settings
         HYPERLIQUID_TESTNET: config.get("hyperliquid-testnet") || "true",
@@ -146,14 +145,20 @@ const hyperliquidAppSettings = new web.WebAppApplicationSettings("hyperliquid-ap
         TELEGRAM_BOT_TOKEN: config.requireSecret("telegram_bot_token"),
 
         // Order configuration
-        FIX_STOPLOSS: config.get("fix-stoploss"),
+        FIX_STOPLOSS: config.get("fix-stoploss") || "",
+
+        // PostgreSQL Database Settings
+        DATABASE_HOST: postgresHost,
+        DATABASE_PORT: postgresPort,
+        DATABASE_NAME: postgresDatabase,
+        DATABASE_USERNAME: postgresUsername,
+        DATABASE_PASSWORD: postgresPassword,
     }
 });
 
-// Export outputs
-export const hyperliquidResourceGroupName = hyperliquidResourceGroup.name;
-export const hyperliquidFunctionAppName = hyperliquidFunctionApp.name;
-export const hyperliquidFunctionAppUrl = pulumi.interpolate`https://${hyperliquidFunctionApp.defaultHostName}`;
-export const hyperliquidStorageAccountName = hyperliquidStorageAccount.name;
-export const hyperliquidAppInsightsInstrumentationKey = hyperliquidAppInsights.instrumentationKey;
-export const hyperliquidAppServicePlanName = hyperliquidAppServicePlan.name;
+export const resourceGroupName = resourceGroup.name;
+export const functionAppName = functionApp.name;
+export const functionAppUrl = pulumi.interpolate`https://${functionApp.defaultHostName}`;
+export const storageAccountName = storageAccount.name;
+export const appInsightsInstrumentationKey = appInsights.instrumentationKey;
+export const appServicePlanName = appServicePlan.name;

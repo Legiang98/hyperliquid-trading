@@ -99,7 +99,7 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
     const marketPrice = parseFloat(allMids[signal.symbol] || "0");
     
     if (!marketPrice) {
-        throw new Error(`Unable to fetch market price for ${signal.symbol}`);
+        throw new AppError(`Unable to fetch market price for ${signal.symbol}`, HTTP.BAD_REQUEST);
     }
     
     /* Get leverage information for the current symbol */
@@ -148,7 +148,7 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
 
     const szDecimalsSymbol = metaMap[signal.symbol]?.szDecimals;
     if (szDecimalsSymbol === undefined) {
-        throw new Error(`Missing szDecimals for symbol ${signal.symbol}`);
+        throw new AppError(`Missing szDecimals for symbol ${signal.symbol}`, HTTP.BAD_REQUEST);
     }
     const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss!);
     const normalizedQuantity = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
@@ -168,7 +168,7 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
     );
 
     if (!isStoplossValid) {
-        throw new Error(`Invalid stop loss price ${signal.stopLoss} for ${signal.symbol} with current leverage ${leverage.value}`);
+        throw new AppError(`Invalid stop loss price ${signal.stopLoss} for ${signal.symbol} with current leverage ${leverage.value}`, HTTP.BAD_REQUEST);
     }
 
     // Return enriched WebhookPayload with calculated quantity and normalized prices

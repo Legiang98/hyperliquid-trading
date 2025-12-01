@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { sendTelegramMessage } from "../services/telegram";
+import { sendTelegramMessage } from "../helpers/telegram";
 
 /** Telegram Bot Azure Function
  * Receives messages via HTTP request and forwards them to a Telegram chat

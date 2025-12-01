@@ -3,7 +3,7 @@ encryptedkey: S2dqOTNIQWl2SEttYjIxektTS2dkRVRjME1jX0RwQkUwVmYyajZsbkszMnZTdkhzNW
 config:
   azure-native:location: Southeast Asia
   trading-infra:location: "Southeast Asia"
-  trading-infra:hyperliquid-testnet: true
+  trading-infra:hyperliquid-testnet: "true"
   trading-infra:hyperliquid-private-key:
     secure: v1:MIJUwT3JWrTtQDax:Li0jQwXfoZKaseDaCeVi3Zr9BHJqg4CVBGToZVDDs4OY7CY/qzHh2vCjlGjapdIx/3Ng8Wm8D9F41BTXx/5Mz1nEvWzduZ3/ao1oVJgWs3bpeQ==
   trading-infra:telegram_bot_token:
@@ -12,3 +12,5 @@ config:
     secure: v1:2WrffThaYL3CTvr0:ikq1YiKphuyv9BNA0PdW6hIyIi5jMBifZlU=
   trading-infra:fix-stoploss: "5"
   trading-infra:hyperliquid-user-address: "0x9074d59bB220E8d0135e522c03769991698aEF17"
+  trading-infra:postgres-admin-password:
+    secure: v1:ERjYUXppT2v70lJ5:qctkFqTCdqSqGMtm3MQzFoSVU+seAsGMH+xvDP7xnfjg

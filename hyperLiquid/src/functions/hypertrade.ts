@@ -6,6 +6,7 @@ import { HTTP } from "../constants/http";
 import { httpResponse } from "../helpers/httpResponse";
 import { initDatabase } from "../db/initDatabase";
 import { AppError, handleError } from "../helpers/errorHandler";
+import { sendTelegramMessage } from "../helpers/telegram";
 
 const { 
     parseWebhook,
@@ -17,9 +18,23 @@ const {
     logTrade 
 } = services;
 
-const dbInitPromise = initDatabase().catch(() => {
-    throw new AppError("Failed to initialize database", HTTP.INTERNAL_SERVER_ERROR);
-});
+async function appInit(context: InvocationContext) {
+  try {
+    await initDatabase(context);
+  } catch (error) {
+
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (chatId && token) {
+      await sendTelegramMessage(chatId, token, `🔴 Startup Error: ${error.message}`);
+    }
+    throw new AppError(error.message, 500);
+  }
+}
+
+const context = {} as InvocationContext;
+appInit(context);
 
 async function hyperLiquidWebhook(
     request: HttpRequest,
@@ -56,20 +71,17 @@ async function hyperLiquidWebhook(
 
         switch (payload.action.toUpperCase()) {
             case "ENTRY":
-                // Build and execute new order
                 const tradeOrder = await buildOrder(payload, context);
                 console.log("Built Order Request:", tradeOrder);
                 orderResult = await executeOrder(tradeOrder, context);
                 break;
 
             case "EXIT":
-                // Close existing position
                 console.log("Closing position for:", payload.symbol);
                 orderResult = await closeOrder(payload, context);
                 break;
 
             case "UPDATE_STOP":
-                // Update trailing stop loss
                 console.log("Updating stop loss for:", payload.symbol);
                 orderResult = await updateStopLoss(payload, context);
                 break;
@@ -87,33 +99,9 @@ async function hyperLiquidWebhook(
             dbOrderId: orderResult.dbOrderId 
         });
 
-        // // // Step 5: Log trade
-        // const emoji = orderResult.success ? "✅" : "❌";
-        // const action = signal.signal === "entry" ? (signal.order === "buy" ? "🟢 Buy" : "🔴 Sell") : "🔁 Exit";
-        // const msg = `
-        // ${emoji} *Trade ${orderResult.success ? "Executed" : "Failed"}*
-        // *Symbol:* ${signal.symbol}
-        // *Action:* ${action}
-        // *Price:* ${signal.price}
-        // *Stop Loss:* ${signal.stopLoss ?? "-"}
-        // *Time:* ${new Date().toLocaleString()}
-        // `.trim();
-
-        // const functionAppDomain = process.env.FUNCTION_APP_DOMAIN || "http://localhost:7071"
-        // context.log(`Sending Telegram message via ${functionAppDomain}/api/telegrambot`);
-        // context.log(msg);
-        // try {
-        //     await fetch(`${functionAppDomain}/api/telegrambot`, {
-        //         method: "POST",
-        //         headers: { "Content-Type": "application/json" },
-        //         body: JSON.stringify({ message: msg, parse_mode: "Markdown" })
-        //     });
-        // } catch (err) {
-        //     context.error("Failed to send Telegram message:", err);
-        // } 
 
     } catch (error) {
-        return handleError(error as Error, context);
+        return await handleError(error as Error, context);
     }
 }
 
