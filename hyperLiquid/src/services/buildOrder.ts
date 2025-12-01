@@ -1,6 +1,15 @@
-import { TradingSignal, OrderRequest, AssetMeta } from "../types";
+import { WebhookPayload, AssetMeta } from "../types";
 import * as hl from "@nktkas/hyperliquid";
+import { AppError } from "../helpers/errorHandler";
+import { HTTP } from "../constants/http";
 
+/**
+ * Normalize order size for HyperLiquid orders
+ * @param symbol The trading symbol
+ * @param size The original size
+ * @param decimals Number of decimal places supported by the exchange for this asset
+ * @returns Normalized size
+ */
 function normalizeOrderSize(
     symbol: string,
     size: number,
@@ -19,12 +28,14 @@ function normalizeOrderSize(
  * e.g: 3480.2567  ->  3480.25
  */
 function normalizePrice(price: number, szDecimals: number): number {
+    /** 
+     * MAX_DECIMALS defines the maximum decimal places supported by HyperLiquid 
+     * Example: If szDecimals = 2, MAX_DECIMALS - szDecimals = 4, so tickSize = 0.0001
+     */
+
     const MAX_DECIMALS = 6;
-
     const tickSize = Math.pow(10, -(MAX_DECIMALS - szDecimals));
-
     let normalized = Math.floor(price / tickSize) * tickSize;
-
     const hasDecimal = normalized % 1 !== 0;
     if (hasDecimal) {
         const digits = normalized.toString().replace('.', '').replace(/^0+/, '');
@@ -36,7 +47,7 @@ function normalizePrice(price: number, szDecimals: number): number {
     return normalized;
 }
 
-/*
+/**
 * Validate the stop loss price with liquidation price
 */
 function validateStoploss(
@@ -61,8 +72,9 @@ function validateStoploss(
 /**
  * Build order request from trading signal
  * Calculates position size based on fixed USD amount
+ * Returns enriched WebhookPayload with quantity and normalized prices
  */
-export async function buildOrder(signal: TradingSignal, context?: any): Promise<OrderRequest> {
+export async function buildOrder(signal: WebhookPayload, context?: any): Promise<WebhookPayload> {
     
     /*
     * Input for the buildOrder function
@@ -71,7 +83,7 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     const userAddress = process.env.HYPERLIQUID_USER_ADDRESS;
     
     if (!userAddress) {
-        throw new Error("HYPERLIQUID_USER_ADDRESS not configured");
+        throw new AppError("HYPERLIQUID_USER_ADDRESS not configured", HTTP.INTERNAL_SERVER_ERROR);
     }
     
     /*
@@ -114,7 +126,7 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
         });
     }
     
-    /* 
+    /**
     * Fetch meta data (contains szDecimals for each symbol) 
     * for round the prices
     */
@@ -138,7 +150,7 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     if (szDecimalsSymbol === undefined) {
         throw new Error(`Missing szDecimals for symbol ${signal.symbol}`);
     }
-    const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss);
+    const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss!);
     const normalizedQuantity = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
     const normalizedPrice = normalizePrice(marketPrice,szDecimalsSymbol);
     const normalizedStopLoss = normalizePrice(signal.stopLoss!, szDecimalsSymbol);
@@ -146,8 +158,9 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
     /*
     * Validate stop loss with liquidation price
     */
+    const order: "buy" | "sell" = signal.type === "BUY" ? "buy" : "sell";
     const isStoplossValid = validateStoploss(
-        signal.order,
+        order,
         marketPrice,
         leverage.value,
         normalizedQuantity,
@@ -158,10 +171,10 @@ export async function buildOrder(signal: TradingSignal, context?: any): Promise<
         throw new Error(`Invalid stop loss price ${signal.stopLoss} for ${signal.symbol} with current leverage ${leverage.value}`);
     }
 
+    // Return enriched WebhookPayload with calculated quantity and normalized prices
     return {
-        symbol: signal.symbol,
-        order: signal.order,
-        quantity: normalizedQuantity,       
+        ...signal,
+        quantity: normalizedQuantity,
         price: normalizedPrice,
         stopLoss: normalizedStopLoss
     };

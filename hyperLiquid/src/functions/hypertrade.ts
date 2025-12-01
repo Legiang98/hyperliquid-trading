@@ -1,101 +1,107 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { services } from "../services/index";
-import { trailingStoploss } from "../services/trailingStop";
+import { webhookSchema } from "../validators/webhookSchema";
+import { WebhookPayload } from "../types";
+import { HTTP } from "../constants/http";
+import { httpResponse } from "../helpers/httpResponse";
+import { initDatabase } from "../db/initDatabase";
+import { AppError, handleError } from "../helpers/errorHandler";
 
 const { 
     parseWebhook,
     validateSignal,
     buildOrder,
     executeOrder,
+    closeOrder,
+    updateStopLoss,
     logTrade 
 } = services;
 
-import { WebhookPayload } from "../services";
-/**
- * Main Azure Function for HyperLiquid trading webhook
- * Orchestrates: parse -> validate -> build -> execute -> log
- */
+const dbInitPromise = initDatabase().catch(() => {
+    throw new AppError("Failed to initialize database", HTTP.INTERNAL_SERVER_ERROR);
+});
+
 async function hyperLiquidWebhook(
     request: HttpRequest,
     context: InvocationContext
 ): Promise<HttpResponseInit> {
 
     try {
-        // Step 1: Parse incoming webhook
-        const payload = await request.json() as WebhookPayload;
-        // context.log("Received payload:", JSON.stringify(payload));
-
-        const signal = await parseWebhook(payload);
-        if (!signal) {
-            return {
-                status: 400,
-                jsonBody: {
-                    success: false,
-                    message: "Invalid webhook payload format"
-                }
-            };
-        }
-
-        context.log("Parsed signal:", JSON.stringify(signal));
-
-        // Step 2: Validate signal
-        const validation = await validateSignal(signal, context);
-        context.log("Validation result:", JSON.stringify(validation));
+        const body = await request.json();
+        
+        /** 
+        * Step 1: Validate webhook schema
+        * Example parsed payload:
+        * {
+        *   symbol: "BTC",
+        *   action: "ENTRY",
+        *   type: "BUY",
+        *   price: 95000,
+        *   stopLoss: 94000
+        * }
+        */
+        const rawPayload = await webhookSchema.validateAsync(body, { abortEarly: false }) as WebhookPayload;
+        const payload = parseWebhook(rawPayload);
+        const validation = await validateSignal(payload, context);
+        console.log("Validation Result:", validation);
+        
         if (!validation.isValid) {
-            // context.log("Signal validation failed:", validation.reason);
-            return {
-                status: 200,
-                jsonBody: {
-                    success: false,
-                    skipped: true,
-                    reason: validation.reason
-                }
-            };
+            return httpResponse(HTTP.BAD_REQUEST, validation.reason!);
         }
 
-        if (validation.skipped) {
-            // context.log("Signal skipped:", validation.reason);
-            return {
-                status: 200,
-                jsonBody: {
-                    success: true,
-                    skipped: true,
-                    reason: validation.reason
-                }
-            };
+        /**
+         * Step 2: Route based on action type
+         */
+        let orderResult: any;
+
+        switch (payload.action.toUpperCase()) {
+            case "ENTRY":
+                // Build and execute new order
+                const tradeOrder = await buildOrder(payload, context);
+                console.log("Built Order Request:", tradeOrder);
+                orderResult = await executeOrder(tradeOrder, context);
+                break;
+
+            case "EXIT":
+                // Close existing position
+                console.log("Closing position for:", payload.symbol);
+                orderResult = await closeOrder(payload, context);
+                break;
+
+            case "UPDATE_STOP":
+                // Update trailing stop loss
+                console.log("Updating stop loss for:", payload.symbol);
+                orderResult = await updateStopLoss(payload, context);
+                break;
+
+            default:
+                return httpResponse(HTTP.BAD_REQUEST, `Unknown action: ${payload.action}`);
         }
 
-
-        context.log("Signal validated successfully");
-
-        // Step 3 & 4: Build and Execute Order based on signal type
-        let orderResult;
-
-        if (signal.signal === "entry") {
-            const orderRequest = await buildOrder(signal, context);
-            orderResult = await executeOrder(orderRequest, signal, context);
-        } else if (signal.signal === "exit") {
-            // Use closeOrder to close the entire position
-            orderResult = await trailingStoploss(signal, context);
-        } else {
-            throw new Error("Unknown signal type");
+        if (!orderResult.success) {
+            return httpResponse(HTTP.BAD_REQUEST, orderResult.error || "Operation failed");
         }
 
-        // // Step 5: Log trade
-        const emoji = orderResult.success ? "✅" : "❌";
-        const action = signal.signal === "entry" ? (signal.order === "buy" ? "🟢 Buy" : "🔴 Sell") : "🔁 Exit";
-        const msg = `
-        ${emoji} *Trade ${orderResult.success ? "Executed" : "Failed"}*
-        *Symbol:* ${signal.symbol}
-        *Action:* ${action}
-        *Price:* ${signal.price}
-        *Stop Loss:* ${signal.stopLoss ?? "-"}
-        *Time:* ${new Date().toLocaleString()}
-        `.trim();
+        return httpResponse(HTTP.OK, orderResult.message || "Operation successful", { 
+            orderId: orderResult.orderId,
+            dbOrderId: orderResult.dbOrderId 
+        });
 
-        const functionAppDomain = process.env.FUNCTION_APP_DOMAIN || "http://localhost:7071"
-        context.log(`Sending Telegram message via ${functionAppDomain}/api/telegrambot`);
-        context.log(msg);
+        // // // Step 5: Log trade
+        // const emoji = orderResult.success ? "✅" : "❌";
+        // const action = signal.signal === "entry" ? (signal.order === "buy" ? "🟢 Buy" : "🔴 Sell") : "🔁 Exit";
+        // const msg = `
+        // ${emoji} *Trade ${orderResult.success ? "Executed" : "Failed"}*
+        // *Symbol:* ${signal.symbol}
+        // *Action:* ${action}
+        // *Price:* ${signal.price}
+        // *Stop Loss:* ${signal.stopLoss ?? "-"}
+        // *Time:* ${new Date().toLocaleString()}
+        // `.trim();
+
+        // const functionAppDomain = process.env.FUNCTION_APP_DOMAIN || "http://localhost:7071"
+        // context.log(`Sending Telegram message via ${functionAppDomain}/api/telegrambot`);
+        // context.log(msg);
         // try {
         //     await fetch(`${functionAppDomain}/api/telegrambot`, {
         //         method: "POST",
@@ -107,15 +113,7 @@ async function hyperLiquidWebhook(
         // } 
 
     } catch (error) {
-        context.error("Error processing webhook:", error);
-        return {
-            status: 500,
-            jsonBody: {
-                success: false,
-                error: "Internal server error",
-                timestamp: new Date().toISOString()
-            }
-        };
+        return handleError(error as Error, context);
     }
 }
 

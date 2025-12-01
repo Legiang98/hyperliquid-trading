@@ -1,19 +1,19 @@
-import { TradingSignal, OrderResult } from "../types";
+import { WebhookPayload, OrderResult } from "../types";
 
 /**
  * Log trade execution details
  * TODO: Integrate with Application Insights and Telegram
  */
 export async function logTrade(
-    signal: TradingSignal,
+    signal: WebhookPayload,
     result: OrderResult,
     context?: any
 ): Promise<void> {
     const logEntry = {
         timestamp: new Date().toISOString(),
         symbol: signal.symbol,
-        order: signal.order,
-        signal: signal.signal,
+        action: signal.action,
+        type: signal.type,
         price: signal.price,
         stopLoss: signal.stopLoss,
         success: result.success,

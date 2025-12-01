@@ -1,128 +1,121 @@
-import { TradingSignal, ValidationResult } from "../types";
+import { WebhookPayload, ValidationResult } from "../types";
 import * as hl from "@nktkas/hyperliquid";
 import { InvocationContext } from "@azure/functions";
-
-async function checkExistingPosition(
-    signal: { signal: string; symbol: string },
-    userAddress: string,
-    context?: InvocationContext
-): Promise<boolean> {
-    const infoClient = new hl.InfoClient({
-        transport: new hl.HttpTransport({
-            isTestnet: process.env.HYPERLIQUID_TESTNET === "true"
-        }),
-    });
-
-    try {
-        const openOrders = await infoClient.openOrders({ user: userAddress });
-
-        const hasOpenPosition = openOrders.some(
-            (order: any) => order.coin === signal.symbol
-        );
-
-        return hasOpenPosition;
-
-    } catch (err) {
-        context?.log(`Error checking existing position: ${(err as Error).message}`);
-        return false;
-    }
-}
-
-async function validateSymbol(
-    signal: TradingSignal,
-    context?: InvocationContext
-): Promise<boolean> {
-    const transport = new hl.HttpTransport({
-        isTestnet: process.env.HYPERLIQUID_TESTNET === "true"
-    });
-
-    const infoClient = new hl.InfoClient({ transport });
-    const meta = await infoClient.meta();
-    const symbolExists = meta.universe.some(asset => asset.name === signal.symbol);
-
-    if (context) {
-        context.log(`Symbol ${signal.symbol} existence: ${symbolExists}`);
-    }
-
-    return symbolExists;
-}
-
-async function validateStopLoss(
-    signal: TradingSignal,
-    context?: InvocationContext
-): Promise<boolean> {
-    context?.log(`Validating stop loss for ${signal.symbol}: price=${signal.price}, stopLoss=${signal.stopLoss}, order=${signal.order}`);
-    if (signal.stopLoss === undefined) {
-        return false;
-    }
-
-    if (signal.order === "buy" && signal.stopLoss >= signal.price) {
-        return false;
-    }
-
-    if (signal.order === "sell" && signal.stopLoss <= signal.price) {
-        return false;
-    }
-
-    return true;
-}
-
-// TODO: validate leverage level and isolate/cross mode
+import { findOpenOrder } from "../db/order.repository";
 
 /**
- * Validate trading signal before execution
+ * Create a HyperLiquid InfoClient instance for API calls.
  */
-export async function validateSignal(signal: TradingSignal, context?: any): Promise<ValidationResult> {
+function createInfoClient(): hl.InfoClient {
+    return new hl.InfoClient({
+        transport: new hl.HttpTransport({
+            isTestnet: process.env.HYPERLIQUID_TESTNET === "true"
+        })
+    });
+}
+
+/**
+ * Check if the user has an open position for the given symbol and strategy.
+ * Validates both in HyperLiquid API and in the database.
+ */
+async function hasOpenPosition(symbol: string, strategy: string, userAddress: string): Promise<boolean> {
     try {
-        // Check if symbol exists
-        const symbolValid = await validateSymbol(signal, context);
-        if (!symbolValid) {
-            return {
-                isValid: false,
-                reason: `Invalid symbol: ${signal.symbol} not found on HyperLiquid`
-            };
+        // Check database for open order with this strategy
+        const dbOrder = await findOpenOrder(symbol, strategy);
+        if (dbOrder) {
+            return true;
         }
 
-        const stoplossValid = await validateStopLoss(signal, context);
-        context.log(`Stop loss validation for ${signal.symbol}: ${stoplossValid}`);
-        if (!stoplossValid) {
-            return {
-                isValid: false,
-                reason: `Invalid stop loss for ${signal.symbol}`
-            };
+        // Also check HyperLiquid API for any open orders on this symbol
+        const infoClient = createInfoClient();
+        const openOrders = await infoClient.openOrders({ user: userAddress as `0x${string}` });
+        return openOrders.some(order => order.coin === symbol);
+        
+        // TODO: Add validation for open orders with specific quantity/size matching
+    } catch {
+        // If API call fails, assume no open position
+        return false;
+    }
+}
+
+/**
+ * Validate if the symbol exists on HyperLiquid.
+ */
+async function isValidSymbol(symbol: string): Promise<boolean> {
+    const infoClient = createInfoClient();
+    const meta = await infoClient.meta();
+    return meta.universe.some(asset => asset.name === symbol);
+}
+
+/**
+ * Validate stop loss logic:
+ * - For BUY: stopLoss < price
+ * - For SHORT: stopLoss > price
+ */
+function isValidStopLoss(payload: WebhookPayload): boolean {
+    if (!payload.stopLoss) return false;
+    const isBuy = payload.type === "BUY";
+    return isBuy ? payload.stopLoss < payload.price : payload.stopLoss > payload.price;
+}
+
+/**
+ * Check if the action is an entry action (BUY or SELL).
+ */
+function isEntryAction(action: string): boolean {
+    return action === "ENTRY";
+}
+
+/**
+ * Main signal validation function.
+ * Checks symbol, stop loss, and position status.
+ */
+export async function validateSignal(
+    payload: WebhookPayload,
+    context?: InvocationContext
+): Promise<ValidationResult> {
+    try {
+        // Symbol must exist
+        if (!await isValidSymbol(payload.symbol)) {
+            return { isValid: false, reason: `Invalid symbol: ${payload.symbol}` };
         }
 
+        // If no user address, skip position checks
         const userAddress = process.env.HYPERLIQUID_USER_ADDRESS;
-        if (userAddress) {
-            const hasPosition = await checkExistingPosition(signal, userAddress, context);
-            
-            if (signal.signal === "entry" && hasPosition) {
-                return {
-                    isValid: false,
-                    skipped: true,
-                    reason: `Already have open position for ${signal.symbol}`
-                };
-            }
-            
-            if (signal.signal === "exit" && !hasPosition) {
-                return {
-                    isValid: false,
-                    skipped: true,
-                    reason: `No open position found for ${signal.symbol} to exit`
-                };
-            }
-
-            else {
-                return {
-                    isValid: true,
-                    skipped: false
-                };
-            }
+        if (!userAddress) {
+            return { isValid: true };
         }
 
+        // Check for open position (both in DB and on exchange)
+        const hasPosition = await hasOpenPosition(payload.symbol, payload.strategy, userAddress);
+
+        // Prevent duplicate entry for the same strategy
+        if (isEntryAction(payload.action) && hasPosition) {
+            return {
+                isValid: false,
+                skipped: true,
+                reason: `Already have open position for ${payload.symbol} with strategy ${payload.strategy}`
+            };
+        }
+
+        // Stop loss must be valid for entry actions
+        if (isEntryAction(payload.action) && !isValidStopLoss(payload)) {
+            return { isValid: false, reason: `Invalid stop loss for ${payload.symbol}` };
+        }
+
+        // Prevent exit if no position for this strategy
+        if (payload.action === "EXIT" && !hasPosition) {
+            return {
+                isValid: false,
+                skipped: true,
+                reason: `No open position found for ${payload.symbol} with strategy ${payload.strategy}`
+            };
+        }
+
+        // All checks passed
         return { isValid: true };
 
     } catch (error) {
+        // Catch-all for unexpected errors
         return {
             isValid: false,
             reason: error instanceof Error ? error.message : "Validation error"
