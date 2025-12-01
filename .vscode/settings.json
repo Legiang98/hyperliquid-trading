@@ -1,10 +1,11 @@
 {
-    "azureFunctions.deploySubpath": "hyperliquid",
+    "azureFunctions.deploySubpath": "hyperLiquid",
     "azureFunctions.postDeployTask": "npm install (functions)",
     "azureFunctions.projectLanguage": "JavaScript",
     "azureFunctions.projectRuntime": "~4",
     "debug.internalConsoleOptions": "neverOpen",
     "azureFunctions.projectLanguageModel": 4,
     "azureFunctions.projectSubpath": "hyperLiquid",
-    "azureFunctions.preDeployTask": "npm prune (functions)"
+    "azureFunctions.preDeployTask": "npm prune (functions)",
+    "azureFunctions.deployMethod": "zip"
 }

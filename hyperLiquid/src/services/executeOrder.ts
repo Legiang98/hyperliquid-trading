@@ -1,141 +1,118 @@
-import { OrderRequest, OrderResult, TradingSignal } from "../types";
+import { OrderResult, WebhookPayload } from "../types";
 import * as hl from "@nktkas/hyperliquid";
+import { insertOrder, updateOrderOid } from "../db/order.repository";
+import { getEnvConfig, createClients, getAssetInfo } from "../helpers/hyperliquid.helpers";
+import { AppError } from "../helpers/errorHandler";
+import { HTTP } from "../constants/http";
 
-function roundPriceForAsset(price, szDecimals, isPerp = true) {
-  const maxDecimals = isPerp ? 6 : 8;
-  const allowedDecimals = Math.max(0, maxDecimals - szDecimals);
-  const factor = Math.pow(10, allowedDecimals);
-  return Math.round(price * factor) / factor;
+function extractOrderId(status: any): number {
+    if (!status) throw new AppError("Order status is missing", HTTP.BAD_REQUEST);
+
+    if (status.resting?.oid) return status.resting.oid;
+    if (status.filled?.oid) return status.filled.oid;
+
+    throw new AppError("Order ID not found in response", HTTP.BAD_REQUEST);
 }
 
 /**
  * Execute order on HyperLiquid exchange
  */
 export async function executeOrder(
-    orderRequest: OrderRequest | null,
-    signal?: TradingSignal,
+    signal: WebhookPayload,
     context?: any
 ): Promise<OrderResult> {
     try {
-        const privateKey = process.env.HYPERLIQUID_PRIVATE_KEY;
-        if (!privateKey) {
-            throw new Error("HYPERLIQUID_PRIVATE_KEY not configured");
+        if (!signal.quantity) {
+            throw new AppError("Quantity is required. Did you call buildOrder first?", HTTP.BAD_REQUEST);
         }
 
-        const isTestnet = process.env.HYPERLIQUID_TESTNET === "true";
-        const transport = new hl.HttpTransport({
-            isTestnet
-        });
-
-        const exchangeClient = new hl.ExchangeClient({
-            wallet: privateKey,
-            transport
-        });
-
-        // Get asset metadata to find the asset ID and size decimals
-        const infoClient = new hl.InfoClient({ transport });
-        const meta = await infoClient.meta();
-        const assetInfo = meta.universe.find(asset => asset.name === signal.symbol);
-        if (!assetInfo) {
-            throw new Error(`Asset ${signal.symbol} not found in metadata`);
-        }
-        
-        const assetId = meta.universe.indexOf(assetInfo);
-        context.log('Signal:', signal);
-        // Handle exit signal (close position)
-        // if (signal.signal === "exit") {
-        //     if (context) {
-        //         context.log(`Closing position for ${signal.symbol}`);
-        //     }
-            
-        //     const closeResult = await exchangeClient.order({
-        //         orders: [{
-        //             a: assetId,
-        //             b: signal.order === "buy",
-        //             p: "0", // Market order
-        //             s: "0", // Close all
-        //             r: true, // Reduce only
-        //             t: { limit: { tif: "Ioc" } }
-        //         }],
-        //         grouping: "na"
-        //     });
-
-        //     if (context) {
-        //         context.log("Close position result:", JSON.stringify(closeResult));
-        //     }
-
-        //     return {
-        //         success: true,
-        //         message: "Position closed successfully",
-        //         orderId: JSON.stringify(closeResult)
-        //     };
-        // }
-
-        // Handle entry signal (open position)
-        if (!orderRequest) {
-            throw new Error("Order request is required for entry signal");
-        }
-
-        if (context) {
-            context.log(`Placing ${orderRequest.order} order for ${orderRequest.symbol}`);
-        }
+        const { privateKey, userAddress, isTestnet } = getEnvConfig();
+        const { exchangeClient, infoClient } = createClients(privateKey, isTestnet);
+        const { assetInfo, assetId } = await getAssetInfo(infoClient, signal.symbol);
 
         const szDecimals = assetInfo.szDecimals;
-        const size = orderRequest.size.toFixed(szDecimals);
-        const orderResult = await exchangeClient.order({
+        const size = signal.quantity.toFixed(szDecimals);
+        const isBuy = signal.type === "BUY";
+
+        // Place main order
+        const orderResponse = await exchangeClient.order({
             orders: [{
                 a: assetId,
-                b: orderRequest.order === "buy" ? true : false,
-                p: orderRequest.price.toString(),
+                b: isBuy,
+                p: signal.price.toString(),
                 s: size,
                 r: false,
-                t: { 
-                    limit: { tif: "Gtc" },
-                    // trigger: {
-                    //     isMarket: true,
-                    //     triggerPx: 0,    // maybe not needed
-                    //     tpsl: null
-                    // }
-                }
+                t: { limit: { tif: "Gtc" } }
             }],
             grouping: "na"
         });
 
-        if (context) {
-            context.log("Order result:", JSON.stringify(orderResult));
-        }
+        const orderStatus = orderResponse.response.data.statuses[0];
+        const orderId = extractOrderId(orderStatus);
+        console.log(`Order placed with ID: ${orderId}`);
 
-        // STOPLOSS ORDER
-        if (orderRequest.stopLoss) {
-            const stopLossOrder = await exchangeClient.order({
+        // Insert order into database
+        const dbOrder = await insertOrder({
+            user_address: userAddress,
+            symbol: signal.symbol,
+            strategy: signal.strategy,
+            quantity: signal.quantity,
+            order_type: signal.type,
+            action: signal.action,
+            price: signal.price,
+            oid: orderId.toString(),
+            status: "open"
+        });
+
+        // Place stop loss order if specified
+        if (signal.stopLoss) {
+            const stopLossResponse = await exchangeClient.order({
                 orders: [{
                     a: assetId,
-                    b: orderRequest.order === "buy" ? false : true,
-                    p: orderRequest.stopLoss.toString(),
+                    b: !isBuy,
+                    p: signal.stopLoss.toString(),
                     s: size,
-                    r: true,  
+                    r: true,
                     t: {
                         trigger: {
                             isMarket: true,
-                            triggerPx: orderRequest.stopLoss.toString(),
+                            triggerPx: signal.stopLoss.toString(),
                             tpsl: "sl"
                         }
                     }
                 }],
                 grouping: "na"
             });
+
+            const stopLossStatus = stopLossResponse.response.data.statuses[0];
+            const stopLossOid = extractOrderId(stopLossStatus);
+            
+            // Insert stop loss order into database
+            await insertOrder({
+                user_address: userAddress,
+                symbol: signal.symbol,
+                strategy: signal.strategy,
+                quantity: signal.quantity,
+                order_type: "STOP_MARKET",
+                action: "EXIT",
+                price: signal.stopLoss,
+                oid: stopLossOid.toString(),
+                status: "open"
+            });
+            
+            console.log(`Stop loss placed with ID: ${stopLossOid}`);
         }
+
+
 
         return {
             success: true,
-            message: "Order placed successfully",
-            // orderId: JSON.stringify(orderResult)
+            message: `Order placed successfully for ${signal.symbol}`,
+            orderId: orderId.toString(),
+            dbOrderId: dbOrder.id
         };
 
     } catch (error) {
-        if (context) {
-            context.error("Error executing order:", error);
-        }
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error"

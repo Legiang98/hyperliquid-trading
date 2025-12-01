@@ -1,26 +1,28 @@
-import { services } from "../src/services";
-import type { TradingSignal } from "../src/types"; // Adjust path if needed
+// import { services } from "../src/services";
+// import type { WebhookPayload } from "../src/types";
 
-const buildOrder = services.buildOrder;
+// process.env.HYPERLIQUID_TESTNET = "true";
+// process.env.HYPERLIQUID_USER_ADDRESS = "0x9074d59bB220E8d0135e522c03769991698aEF17";
+// process.env.FIX_STOPLOSS = "5";
 
-// Example signal input for testing
-const testSignal: TradingSignal = {
-    symbol: "BTC",
-    signal: "entry",
-    order: "buy", // Now TypeScript knows this is the literal "buy"
-    price: 101813.333,
-    stopLoss: 101600.01001,
-    // Add other properties as needed for your buildOrder function
-};
+// const buildOrder = services.buildOrder;
 
-// Run the buildOrder function and print the result
-async function testBuildOrder() {
-    try {
-        const order = await buildOrder(testSignal);
-        console.log("buildOrder result:", order);
-    } catch (error) {
-        console.error("Error testing buildOrder:", error);
-    }
-}
+// const testSignal: WebhookPayload = {
+//     symbol: "BTC",
+//     action: "entry",
+//     type: "buy",
+//     price: 101813.333,
+//     stopLoss: 101600.01001,
+//     strategy: "test-strategy"
+// };
 
-testBuildOrder();
+// async function testBuildOrder() {
+//     try {
+//         const order = await buildOrder(testSignal);
+//         console.log("buildOrder result:", order);
+//     } catch (error) {
+//         console.error("Error testing buildOrder:", error);
+//     }
+// }
+
+// testBuildOrder();
