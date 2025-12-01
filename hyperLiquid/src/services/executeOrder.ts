@@ -4,6 +4,7 @@ import { insertOrder, updateOrderOid } from "../db/order.repository";
 import { getEnvConfig, createClients, getAssetInfo } from "../helpers/hyperliquid.helpers";
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";
+import { sendTelegramMessage } from "../helpers/telegram";
 
 function extractOrderId(status: any): number {
     if (!status) throw new AppError("Order status is missing", HTTP.BAD_REQUEST);
@@ -103,7 +104,19 @@ export async function executeOrder(
             console.log(`Stop loss placed with ID: ${stopLossOid}`);
         }
 
+        // Send Telegram notification
+        try {
+            const chatId = process.env.TELEGRAM_CHAT_ID;
+            const token = process.env.TELEGRAM_BOT_TOKEN;
 
+            if (chatId && token) {
+                const action = isBuy ? "🟢 BUY" : "🔴 SELL";
+                const message = `✅ *Order Executed*\n${action} ${signal.symbol} @ ${signal.price}${signal.stopLoss ? `\nSL: ${signal.stopLoss}` : ""}`;
+                await sendTelegramMessage(chatId, token, message);
+            }
+        } catch (err) {
+            console.error("Failed to send Telegram notification:", err);
+        }
 
         return {
             success: true,
