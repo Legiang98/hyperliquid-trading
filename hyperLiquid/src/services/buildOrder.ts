@@ -117,39 +117,37 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
         transport
     });
 
+    /**
+    * Fetch meta data first to get asset ID
+    * Example perp object:
+    * {
+    *   "szDecimals": 0,
+    *   "name": "SAND",
+    *   "maxLeverage": 5,
+    *   "marginTableId": 5
+    * }
+    */
+    const metaResponse = await infoClient.meta();
+    const assetIndex = metaResponse.universe.findIndex(asset => asset.name === signal.symbol);
+    
+    if (assetIndex === -1) {
+        throw new AppError(`Symbol ${signal.symbol} not found in HyperLiquid`, HTTP.BAD_REQUEST);
+    }
+
     /* Switch to isolated mode if current leverage is cross */
     if (leverage.type == "cross") {
         await exchangeClient.updateLeverage({
             isCross: false,
-            asset: signal.symbol,
+            asset: assetIndex,
             leverage: leverage.value
         });
     }
     
     /**
-    * Fetch meta data (contains szDecimals for each symbol) 
-    * for round the prices
+    * Get szDecimals from already fetched meta data
     */
-    const metaResponse = await infoClient.meta();
-    const metaMap: Record<string, { szDecimals: number }> = {};
-
-    for (const perp of metaResponse.universe) {
-        metaMap[perp.name] = { szDecimals: perp.szDecimals };
-        /** 
-         * Example perp object:
-        {
-            "szDecimals": 0,
-            "name": "SAND",
-            "maxLeverage": 5,
-            "marginTableId": 5
-        },
-         */
-    }
-
-    const szDecimalsSymbol = metaMap[signal.symbol]?.szDecimals;
-    if (szDecimalsSymbol === undefined) {
-        throw new AppError(`Missing szDecimals for symbol ${signal.symbol}`, HTTP.BAD_REQUEST);
-    }
+    const assetMeta = metaResponse.universe[assetIndex];
+    const szDecimalsSymbol = assetMeta.szDecimals;
     const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss!);
     const normalizedQuantity = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
     const normalizedPrice = normalizePrice(marketPrice,szDecimalsSymbol);
