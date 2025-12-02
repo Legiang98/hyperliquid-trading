@@ -50,7 +50,7 @@ export async function executeOrder(
 
         const orderStatus = orderResponse.response.data.statuses[0];
         const orderId = extractOrderId(orderStatus);
-        console.log(`Order placed with ID: ${orderId}`);
+        context.log(`Order placed with ID: ${orderId}`);
 
         // Insert order into database
         const dbOrder = await insertOrder({
@@ -101,7 +101,7 @@ export async function executeOrder(
                 status: "open"
             });
             
-            console.log(`Stop loss placed with ID: ${stopLossOid}`);
+            context.log(`Stop loss placed with ID: ${stopLossOid}`);
         }
 
         // Send Telegram notification
@@ -115,7 +115,7 @@ export async function executeOrder(
                 await sendTelegramMessage(chatId, token, message);
             }
         } catch (err) {
-            console.error("Failed to send Telegram notification:", err);
+            context.log.error("Failed to send Telegram notification:", err);
         }
 
         return {

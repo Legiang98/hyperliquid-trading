@@ -17,23 +17,23 @@ export async function findOpenOrder(
 
 export async function insertOrder(order: NewOrder): Promise<OrderRecord> {
   const result = await pool.query<OrderRecord>(
-    `INSERT INTO orders (user_address, symbol, strategy, quantity, order_type, action, price, oid, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO orders (user_address, symbol, action, status, quantity, strategy, price, oid)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       order.user_address,
       order.symbol,
-      order.strategy,
-      order.quantity,
-      order.order_type,
       order.action,
+      order.status,
+      order.quantity,
+      order.strategy,
       order.price,
       order.oid || null,
-      order.status,
     ]
   );
   return result.rows[0];
 }
+
 
 export async function updateOrderOid(
   orderId: string,
