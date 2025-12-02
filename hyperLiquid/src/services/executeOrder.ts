@@ -66,6 +66,7 @@ export async function executeOrder(
         });
 
         // Place stop loss order if specified
+        context.log(`Checking for stop loss placement...: ${signal.stopLoss}`);
         if (signal.stopLoss) {
             const stopLossResponse = await exchangeClient.order({
                 orders: [{
@@ -86,6 +87,7 @@ export async function executeOrder(
             });
 
             const stopLossStatus = stopLossResponse.response.data.statuses[0];
+            context.log("Stop loss order status:", JSON.stringify(stopLossStatus));
             const stopLossOid = extractOrderId(stopLossStatus);
             
             // Insert stop loss order into database

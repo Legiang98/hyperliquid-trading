@@ -1,7 +1,6 @@
 import { WebhookPayload, ValidationResult } from "../types";
 import * as hl from "@nktkas/hyperliquid";
 import { InvocationContext } from "@azure/functions";
-import { findOpenOrder } from "../db/order.repository";
 
 /**
  * Create a HyperLiquid InfoClient instance for API calls.
@@ -16,24 +15,32 @@ function createInfoClient(): hl.InfoClient {
 
 /**
  * Check if the user has an open position for the given symbol and strategy.
- * Validates both in HyperLiquid API and in the database.
+ * Validates by checking if order exists in both HyperLiquid API and database.
  */
 async function hasOpenPosition(symbol: string, strategy: string, userAddress: string): Promise<boolean> {
     try {
-        // Check database for open order with this strategy
-        const dbOrder = await findOpenOrder(symbol, strategy);
-        if (dbOrder) {
-            return true;
-        }
-
-        // Also check HyperLiquid API for any open orders on this symbol
+        // Get HyperLiquid open orders for this symbol
         const infoClient = createInfoClient();
         const openOrders = await infoClient.openOrders({ user: userAddress as `0x${string}` });
-        return openOrders.some(order => order.coin === symbol);
+        const symbolOrders = openOrders.filter(order => order.coin === symbol);
         
-        // TODO: Add validation for open orders with specific quantity/size matching
-    } catch {
-        // If API call fails, assume no open position
+        if (symbolOrders.length === 0) {
+            return false;
+        }
+
+        // Check if any of these orders exist in database with status='open'
+        const { findOpenOrderByOid } = await import('../db/order.repository');
+        
+        for (const order of symbolOrders) {
+            const dbOrder = await findOpenOrderByOid(symbol, order.oid.toString());
+            if (dbOrder && dbOrder.strategy === strategy) {
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("Error checking position:", error);
         return false;
     }
 }

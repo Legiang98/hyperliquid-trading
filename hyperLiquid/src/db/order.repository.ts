@@ -71,3 +71,16 @@ export async function closeAllOrders(
     [pnl, symbol, strategy]
   );
 }
+
+export async function findOpenOrderByOid(
+  symbol: string,
+  oid: string
+): Promise<OrderRecord | null> {
+  const result = await pool.query<OrderRecord>(
+    `SELECT * FROM orders 
+     WHERE symbol = $1 AND oid = $2 AND status = 'open' 
+     LIMIT 1`,
+    [symbol, oid]
+  );
+  return result.rows[0] || null;
+}
