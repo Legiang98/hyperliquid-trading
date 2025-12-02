@@ -4,25 +4,8 @@ import { findOpenOrder, closeAllOrders } from "../db/order.repository";
 import { getEnvConfig, createClients, getAssetInfo, getPosition } from "../helpers/hyperliquid.helpers";
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";
-
-/**
- * Get current market price (best bid/ask) for near-market execution
- */
-async function getMarketPrice(infoClient: hl.InfoClient, symbol: string, isSell: boolean): Promise<number> {
-    const allMids = await infoClient.allMids();
-    const marketPrice = parseFloat(allMids[symbol] || "0");
-    
-    console.log(`[closeOrder] Symbol: ${symbol}, Market price: ${marketPrice}`);
-    
-    if (!marketPrice || isNaN(marketPrice)) {
-        throw new AppError(`Unable to fetch market price for ${symbol}`, HTTP.BAD_REQUEST);
-    }
-    
-    // For sell orders, price slightly below mid; for buy orders, slightly above
-    // This ensures quick execution while avoiding market order restrictions
-    const priceAdjustment = isSell ? 0.999 : 1.001;
-    return marketPrice * priceAdjustment;
-}
+import { sendTelegramMessage } from "../helpers/telegram";
+import { getMarketPrice, formatPriceForOrder } from "../helpers/marketPrice.helpers";
 
 /**
  * Cancel all open orders for a symbol (including stop loss)
@@ -36,7 +19,7 @@ async function cancelOpenOrders(
 ): Promise<void> {
     const openOrders = await infoClient.openOrders({ user: userAddress as `0x${string}` });
     const ordersToCancel = openOrders.filter(order => order.coin === symbol);
-    
+
     if (ordersToCancel.length > 0) {
         await exchangeClient.cancel({
             cancels: ordersToCancel.map(order => ({
@@ -58,7 +41,7 @@ export async function closeOrder(
 ): Promise<OrderResult> {
     try {
         console.log(`[closeOrder] Received signal:`, JSON.stringify(signal, null, 2));
-        
+
         const { privateKey, userAddress, isTestnet } = getEnvConfig();
         const { exchangeClient, infoClient } = createClients(privateKey, isTestnet);
         const { assetInfo, assetId } = await getAssetInfo(infoClient, signal.symbol);
@@ -70,23 +53,21 @@ export async function closeOrder(
         }
 
         // Get current position from HyperLiquid
-        const { positionSize, isLong } = await getPosition(infoClient, userAddress, signal.symbol);
+        const { positionSize, isBuy } = await getPosition(infoClient, userAddress, signal.symbol);
         const size = positionSize.toFixed(assetInfo.szDecimals);
-        
-        
+
         // Get near-market price for quick execution
-        const closePrice = await getMarketPrice(infoClient, signal.symbol, isLong);
-        
-        // Format price according to HyperLiquid requirements (max 5 significant figures)
-        const MAX_DECIMALS = 5;
-        const pxDecimals = Math.max(0, MAX_DECIMALS - Math.floor(Math.log10(closePrice)) - 1);
-        const formattedPrice = closePrice.toFixed(Math.min(pxDecimals, assetInfo.szDecimals));
-        
+        const closePrice = await getMarketPrice(infoClient, signal.symbol, isBuy);
+        console.log(`[closeOrder] Symbol: ${signal.symbol}, Market price: ${closePrice}`);
+
+        // Format price according to HyperLiquid requirements
+        const formattedPrice = formatPriceForOrder(closePrice, assetInfo.szDecimals);
+
         // Place closing order (opposite direction of position)
         const closeResponse = await exchangeClient.order({
             orders: [{
                 a: assetId,
-                b: !isLong, // Opposite of current position
+                b: !isBuy, // Opposite of current position
                 p: formattedPrice,
                 s: size,
                 r: true, // Reduce-only to ensure it only closes position
@@ -101,16 +82,30 @@ export async function closeOrder(
         }
 
         // Cancel any remaining orders (stop loss, etc.)
-        await cancelOpenOrders(exchangeClient, infoClient, userAddress, signal.symbol, assetId);
+        // await cancelOpenOrders(exchangeClient, infoClient, userAddress, signal.symbol, assetId);
 
         // Calculate PnL (simplified - can be enhanced)
         const entryPrice = dbOrder.price;
-        const pnl = isLong 
+        const pnl = isBuy
             ? (closePrice - entryPrice) * positionSize
             : (entryPrice - closePrice) * positionSize;
 
         // Update database - close ALL orders for this strategy (entry + stop loss)
         await closeAllOrders(signal.symbol, signal.strategy, pnl);
+
+        // Send Telegram notification
+        try {
+            const chatId = process.env.TELEGRAM_CHAT_ID;
+            const token = process.env.TELEGRAM_BOT_TOKEN;
+
+            if (chatId && token) {
+                const action = isBuy ? "🟢 BUY" : "🔴 SELL";
+                const message = `✅ *Order Closed*\n${action} ${signal.symbol} @ ${signal.price}${signal.stopLoss ? `\nSL: ${signal.stopLoss}` : ""}`;
+                await sendTelegramMessage(chatId, token, message);
+            }
+        } catch (err) {
+            context.log.error("Failed to send Telegram notification:", err);
+        }
 
         return {
             success: true,

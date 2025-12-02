@@ -12,14 +12,14 @@ async function findStopLossOrder(
     infoClient: hl.InfoClient, 
     userAddress: string, 
     symbol: string, 
-    isLong: boolean
+    isBuy: boolean
 ) {
     const openOrders = await infoClient.openOrders({ user: userAddress as `0x${string}` });
     
     const stopLossOrder = openOrders.find(order => 
         order.coin === symbol && 
         order.reduceOnly === true &&
-        ((isLong && order.side === "A") || (!isLong && order.side === "B"))
+        ((isBuy && order.side === "A") || (!isBuy && order.side === "B"))
     );
     
     if (!stopLossOrder) {
@@ -48,8 +48,8 @@ export async function updateStopLoss(
         const { privateKey, userAddress, isTestnet } = getEnvConfig();
         const { exchangeClient, infoClient } = createClients(privateKey, isTestnet);
         const { assetInfo, assetId } = await getAssetInfo(infoClient, signal.symbol);
-        const { positionSize, isLong } = await getPosition(infoClient, userAddress, signal.symbol);
-        const stopLossOrder = await findStopLossOrder(infoClient, userAddress, signal.symbol, isLong);
+        const { positionSize, isBuy } = await getPosition(infoClient, userAddress, signal.symbol);
+        const stopLossOrder = await findStopLossOrder(infoClient, userAddress, signal.symbol, isBuy);
 
         const size = positionSize.toFixed(assetInfo.szDecimals);
 
@@ -59,7 +59,7 @@ export async function updateStopLoss(
                 oid: stopLossOrder.oid,
                 order: {
                     a: assetId,
-                    b: !isLong, // Opposite of position direction
+                    b: !isBuy, // Opposite of position direction
                     p: newStopPrice.toString(),
                     s: size,
                     r: true, // Reduce-only flag

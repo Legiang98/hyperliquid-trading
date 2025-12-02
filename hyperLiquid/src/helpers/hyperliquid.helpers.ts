@@ -58,7 +58,7 @@ export async function getPosition(infoClient: hl.InfoClient, userAddress: string
     }
 
     const positionSize = Math.abs(parseFloat(position.position.szi));
-    const isLong = parseFloat(position.position.szi) > 0;
+    const isBuy = parseFloat(position.position.szi) > 0;
     
-    return { positionSize, isLong };
+    return { positionSize, isBuy };
 }
