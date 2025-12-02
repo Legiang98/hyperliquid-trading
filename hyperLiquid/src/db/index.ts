@@ -1,4 +1,6 @@
 import { Pool } from 'pg';
+import { AppError } from '../helpers/errorHandler';
+import { HTTP } from '../constants/http';
 
 const pool = new Pool({
   host: process.env.DATABASE_HOST,
@@ -16,5 +18,15 @@ pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
   process.exit(-1);
 });
+
+(async () => {
+  try {
+    const client = await pool.connect();
+    console.log('Connected to PostgreSQL successfully');
+    client.release();
+  } catch (err) {
+    throw new AppError(`Failed to connect to PostgreSQL: ${err instanceof Error ? err.message : 'Unknown error'}`, HTTP.INTERNAL_SERVER_ERROR);
+  }
+})();
 
 export default pool;

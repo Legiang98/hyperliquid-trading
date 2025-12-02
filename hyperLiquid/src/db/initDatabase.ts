@@ -2,12 +2,12 @@ import pool from './index';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { AppError } from '../helpers/errorHandler';
-import { sendTelegramMessage } from '../helpers/telegram';
+import { HTTP } from '../constants/http';
 import { InvocationContext } from '@azure/functions';
 
 let isInitialized = false;
 
-export async function initDatabase(context: InvocationContext): Promise<void> {
+export async function initDatabase(): Promise<void> {
   if (isInitialized) return;
 
   try {
@@ -22,7 +22,7 @@ export async function initDatabase(context: InvocationContext): Promise<void> {
     const tableExists = result.rows[0].exists;
 
     if (!tableExists) {
-      context.log('Orders table not found. Initializing database...');
+      console.log('Orders table not found. Initializing database...');
       
       const initSql = readFileSync(
         join(__dirname, 'migrations', '001_create_orders_table.sql'),
@@ -30,17 +30,16 @@ export async function initDatabase(context: InvocationContext): Promise<void> {
       );
       
       await pool.query(initSql);
-      context.log('Database initialized successfully.');
+      console.log('Database initialized successfully.');
     }
+
+    console.log('Database is ready.');
 
     isInitialized = true;
   } catch (error) {
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-
-    if (chatId && token) {
-      await sendTelegramMessage(chatId, token, `🔴 Startup Error: ${error.message}`);
-    }
-    throw new AppError(error.message, 500);
+    throw new AppError(
+      `Failed to initialize database: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      HTTP.INTERNAL_SERVER_ERROR
+    );
   }
 }

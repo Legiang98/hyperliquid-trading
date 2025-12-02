@@ -7,7 +7,7 @@ import { httpResponse } from "../helpers/httpResponse";
 import { initDatabase } from "../db/initDatabase";
 import { AppError, handleError } from "../helpers/errorHandler";
 import { sendTelegramMessage } from "../helpers/telegram";
-
+import { appInit } from "../helpers/appInit";
 const { 
     parseWebhook,
     validateSignal,
@@ -18,23 +18,7 @@ const {
     logTrade 
 } = services;
 
-async function appInit(context: InvocationContext) {
-  try {
-    await initDatabase(context);
-  } catch (error) {
-
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-
-    if (chatId && token) {
-      await sendTelegramMessage(chatId, token, `🔴 Startup Error: ${error.message}`);
-    }
-    throw new AppError(error.message, 500);
-  }
-}
-
-const context = {} as InvocationContext;
-appInit(context);
+appInit();
 
 async function hyperLiquidWebhook(
     request: HttpRequest,
@@ -57,8 +41,9 @@ async function hyperLiquidWebhook(
         */
         const rawPayload = await webhookSchema.validateAsync(body, { abortEarly: false }) as WebhookPayload;
         const payload = parseWebhook(rawPayload);
+        context.log("Parsed Payload:", payload);
         const validation = await validateSignal(payload, context);
-        console.log("Validation Result:", validation);
+        context.log("Validation Result:", validation);
         
         if (!validation.isValid) {
             return httpResponse(HTTP.BAD_REQUEST, validation.reason!);
@@ -72,18 +57,18 @@ async function hyperLiquidWebhook(
         switch (payload.action.toUpperCase()) {
             case "ENTRY":
                 const tradeOrder = await buildOrder(payload, context);
-                console.log("Built Order Request:", tradeOrder);
+                context.log("Built Order Request:", tradeOrder);
                 orderResult = await executeOrder(tradeOrder, context);
                 break;
 
             case "EXIT":
-                console.log("Closing position for:", payload.symbol);
                 orderResult = await closeOrder(payload, context);
+                context.log("Close Order Result:", orderResult);
                 break;
 
             case "UPDATE_STOP":
-                console.log("Updating stop loss for:", payload.symbol);
                 orderResult = await updateStopLoss(payload, context);
+                context.log("Update Stop Loss Result:", orderResult);
                 break;
 
             default:
@@ -107,6 +92,6 @@ async function hyperLiquidWebhook(
 
 app.http("hyperLiquidWebhook", {
     methods: ["POST"],
-    authLevel: "anonymous",
+    authLevel: "function",
     handler: hyperLiquidWebhook
 });

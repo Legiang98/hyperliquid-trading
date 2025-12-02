@@ -8,15 +8,15 @@
 // }
 
 function checkTradingViewEmails() {
-  const PROCESSED_LABEL = 'Processed-TDV';
+  const PROCESSED_LABEL = "Processed-TDV";
   const label = GmailApp.createLabel(PROCESSED_LABEL);
-  const query = 'from:noreply@tradingview.com newer_than:7d';
+  const query = "from:noreply@tradingview.com newer_than:7d";
   const threads = GmailApp.search(query, 0, 1); // limit to 15 threads to avoid timeouts
   console.log(`Found ${threads.length} threads matching search criteria.`);
 
   threads.forEach((thread) => {
     const labels = thread.getLabels();
-    const labelNames = labels.map(label => label.getName());
+    const labelNames = labels.map((label) => label.getName());
     if (labelNames.includes(PROCESSED_LABEL)) {
       console.log("Skipping (already processed).");
       return;
@@ -63,23 +63,25 @@ function extractJsonFromEmail(body) {
  * Handles errors and returns a boolean representing success/failure.
  */
 function sendToWebhook(jsonData) {
-  const webhookUrl = 'https://hyperliquid-dev-func.azurewebsites.net/api/hyperLiquidWebhook';
+  const webhookUrl =
+    "https://hyperliquid-dev-func.azurewebsites.net/api/hyperLiquidWebhook";
 
   const payload = {
-    pair: jsonData.pair,
+    symbol: jsonData.pair, // Map 'pair' to 'symbol'
     action: jsonData.action,
-    entry: jsonData.entry,
+    type: jsonData.type, // Must be "BUY" or "SELL"
+    price: jsonData.entry, // Map 'entry' to 'price'
     stopLoss: jsonData.stopLoss,
-    receivedAt: new Date().toISOString()
+    strategy: jsonData.strategy || "baseline_v1.2", // Add strategy field
   };
 
   console.log(`Sending payload: ${JSON.stringify(payload)}`);
 
   const options = {
-    method: 'post',
-    contentType: 'application/json',
+    method: "post",
+    contentType: "application/json",
     payload: JSON.stringify(payload),
-    muteHttpExceptions: true // allows capturing error responses
+    muteHttpExceptions: true, // allows capturing error responses
   };
 
   try {
@@ -94,7 +96,6 @@ function sendToWebhook(jsonData) {
 
     console.error(`Webhook failed: ${response.getContentText()}`);
     return false;
-
   } catch (error) {
     console.error(`Webhook request error: ${error}`);
     return false;
