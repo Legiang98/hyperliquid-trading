@@ -1,6 +1,7 @@
 import { WebhookPayload, ValidationResult } from "../types";
 import * as hl from "@nktkas/hyperliquid";
 import { InvocationContext } from "@azure/functions";
+import { findOpenOrderByOid } from '../db/order.repository';
 
 /**
  * Create a HyperLiquid InfoClient instance for API calls.
@@ -29,7 +30,7 @@ async function hasOpenPosition(symbol: string, strategy: string, userAddress: st
         }
 
         // Check if any of these orders exist in database with status='open'
-        const { findOpenOrderByOid } = await import('../db/order.repository');
+
         
         for (const order of symbolOrders) {
             const dbOrder = await findOpenOrderByOid(symbol, order.oid.toString());

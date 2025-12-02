@@ -5,6 +5,7 @@ import { getEnvConfig, createClients, getAssetInfo } from "../helpers/hyperliqui
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";
 import { sendTelegramMessage } from "../helpers/telegram";
+import { getFormattedMarketPrice } from "../helpers/marketPrice.helpers";
 
 function extractOrderId(status: any): number {
     if (!status) throw new AppError("Order status is missing", HTTP.BAD_REQUEST);
@@ -35,12 +36,15 @@ export async function executeOrder(
         const size = signal.quantity.toFixed(szDecimals);
         const isBuy = signal.type === "BUY";
 
-        // Place main order
+        // Get near-market price for immediate execution
+        const formattedPrice = await getFormattedMarketPrice(infoClient, signal.symbol, isBuy, szDecimals);
+
+        // Place main order at near-market price
         const orderResponse = await exchangeClient.order({
             orders: [{
                 a: assetId,
                 b: isBuy,
-                p: signal.price.toString(),
+                p: formattedPrice,
                 s: size,
                 r: false,
                 t: { limit: { tif: "Gtc" } }
@@ -89,7 +93,7 @@ export async function executeOrder(
             const stopLossStatus = stopLossResponse.response.data.statuses[0];
             context.log("Stop loss order status:", JSON.stringify(stopLossStatus));
             const stopLossOid = extractOrderId(stopLossStatus);
-            
+
             // Insert stop loss order into database
             await insertOrder({
                 user_address: userAddress,
@@ -102,7 +106,7 @@ export async function executeOrder(
                 oid: stopLossOid.toString(),
                 status: "open"
             });
-            
+
             context.log(`Stop loss placed with ID: ${stopLossOid}`);
         }
 
