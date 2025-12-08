@@ -116,6 +116,12 @@ const functionApp = new web.WebApp("hyperliquid-function", {
                 action: "Allow",
                 priority: 103,
                 name: "TradingView-4"
+            },
+            {
+                ipAddress: "0.0.0.0/0",
+                action: "Allow",
+                priority: 200,
+                name: "Allow-All"
             }
         ]
     },

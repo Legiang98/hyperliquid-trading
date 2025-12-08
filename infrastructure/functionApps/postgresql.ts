@@ -13,7 +13,7 @@ const postgresServer = new dbforpostgresql.Server("hyperliquid-postgres", {
     resourceGroupName: "hyperliquid-dev-rg",
     location: "Southeast Asia",
     sku: {
-        name: "Standard_B2s",
+        name: "Standard_B1ms",
         tier: "Burstable"
     },
     storage: {
