@@ -1,6 +1,6 @@
 import { OrderResult, WebhookPayload } from "../types";
 import * as hl from "@nktkas/hyperliquid";
-import { insertOrder, updateOrderOid } from "../db/order.repository";
+import { insertOrder, updateOrderOid } from "../db/tableStorage.repository";
 import { getEnvConfig, createClients, getAssetInfo } from "../helpers/hyperliquid.helpers";
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";

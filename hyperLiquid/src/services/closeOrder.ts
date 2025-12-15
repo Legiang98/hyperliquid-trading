@@ -1,6 +1,6 @@
 import { WebhookPayload, OrderResult } from "../types";
 import * as hl from "@nktkas/hyperliquid";
-import { findOpenOrder, closeAllOrders } from "../db/order.repository";
+import { findOpenOrder, closeAllOrders } from "../db/tableStorage.repository";
 import { getEnvConfig, createClients, getAssetInfo, getPosition } from "../helpers/hyperliquid.helpers";
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";

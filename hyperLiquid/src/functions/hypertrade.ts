@@ -4,18 +4,17 @@ import { webhookSchema } from "../validators/webhookSchema";
 import { WebhookPayload } from "../types";
 import { HTTP } from "../constants/http";
 import { httpResponse } from "../helpers/httpResponse";
-import { initDatabase } from "../db/initDatabase";
 import { AppError, handleError } from "../helpers/errorHandler";
 import { sendTelegramMessage } from "../helpers/telegram";
 import { appInit } from "../helpers/appInit";
-const { 
+const {
     parseWebhook,
     validateSignal,
     buildOrder,
     executeOrder,
     closeOrder,
     updateStopLoss,
-    logTrade 
+    logTrade
 } = services;
 
 appInit();
@@ -27,7 +26,7 @@ async function hyperLiquidWebhook(
 
     try {
         const body = await request.json();
-        
+
         /** 
         * Step 1: Validate webhook schema
         * Example parsed payload:
@@ -44,7 +43,7 @@ async function hyperLiquidWebhook(
         context.log("Parsed Payload:", payload);
         const validation = await validateSignal(payload, context);
         context.log("Validation Result:", validation);
-        
+
         if (!validation.isValid) {
             return httpResponse(HTTP.BAD_REQUEST, validation.reason!);
         }
@@ -79,9 +78,9 @@ async function hyperLiquidWebhook(
             return httpResponse(HTTP.BAD_REQUEST, orderResult.error || "Operation failed");
         }
 
-        return httpResponse(HTTP.OK, orderResult.message || "Operation successful", { 
+        return httpResponse(HTTP.OK, orderResult.message || "Operation successful", {
             orderId: orderResult.orderId,
-            dbOrderId: orderResult.dbOrderId 
+            dbOrderId: orderResult.dbOrderId
         });
 
 

@@ -5,34 +5,20 @@ import * as storage from "@pulumi/azure-native/storage";
 import * as web from "@pulumi/azure-native/web";
 import * as applicationinsights from "@pulumi/azure-native/applicationinsights";
 import {
-    postgresHost,
-    postgresPort,
-    postgresDatabase,
-    postgresUsername,
-    postgresPassword
-} from "./postgresql";
+    tableStorageConnectionString
+} from "./tableStorage";
+import { resourceGroup, location, environment, commonTags } from "../shared";
 
 const config = new pulumi.Config();
-const location = "southeastasia";
-const environment = pulumi.getStack();
 
-const commonTags = {
-    Environment: environment,
-    Project: "HyperliquidTrading",
-    ManagedBy: "Pulumi"
-};
-
-export const resourceGroup = new resources.ResourceGroup("hyperliquid-rg", {
-    resourceGroupName: "hyperliquid-dev-rg",
-    location,
-    tags: commonTags
-});
 
 const storageAccount = new storage.StorageAccount("hyperliquidsa", {
     accountName: `hyperliquid${environment}sa`,
     resourceGroupName: resourceGroup.name,
     location: resourceGroup.location,
-    sku: { name: storage.SkuName.Standard_LRS },
+    sku: {
+        name: storage.SkuName.Standard_LRS
+    },
     kind: storage.Kind.StorageV2,
     allowBlobPublicAccess: false,
     minimumTlsVersion: storage.MinimumTlsVersion.TLS1_2,
@@ -43,7 +29,9 @@ const appServicePlan = new web.AppServicePlan("hyperliquid-plan", {
     name: `hyperliquid-${environment}-plan`,
     resourceGroupName: resourceGroup.name,
     location: resourceGroup.location,
-    sku: { name: "Y1", tier: "Dynamic" },
+    sku: {
+        name: "Y1", tier: "Dynamic"
+    },
     kind: "functionapp,linux",
     tags: commonTags
 });
@@ -153,12 +141,8 @@ const appSettings = new web.WebAppApplicationSettings("hyperliquid-app-settings"
         // Order configuration
         FIX_STOPLOSS: config.get("fix-stoploss") || "",
 
-        // PostgreSQL Database Settings
-        DATABASE_HOST: postgresHost,
-        DATABASE_PORT: postgresPort,
-        DATABASE_NAME: postgresDatabase,
-        DATABASE_USERNAME: postgresUsername,
-        DATABASE_PASSWORD: postgresPassword,
+        // Azure Table Storage Settings
+        AZURE_STORAGE_CONNECTION_STRING: tableStorageConnectionString,
     }
 });
 
