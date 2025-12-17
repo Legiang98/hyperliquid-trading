@@ -143,6 +143,10 @@ const appSettings = new web.WebAppApplicationSettings("hyperliquid-app-settings"
 
         // Azure Table Storage Settings
         AZURE_STORAGE_CONNECTION_STRING: tableStorageConnectionString,
+
+        // Application Insights
+        APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.connectionString,
+        ApplicationInsightsAgent_EXTENSION_VERSION: "~3",
     }
 });
 
@@ -151,4 +155,5 @@ export const functionAppName = functionApp.name;
 export const functionAppUrl = pulumi.interpolate`https://${functionApp.defaultHostName}`;
 export const storageAccountName = storageAccount.name;
 export const appInsightsInstrumentationKey = appInsights.instrumentationKey;
+export const appInsightsConnectionString = appInsights.connectionString;
 export const appServicePlanName = appServicePlan.name;
