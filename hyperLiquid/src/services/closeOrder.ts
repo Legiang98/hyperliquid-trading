@@ -1,11 +1,12 @@
 import { WebhookPayload, OrderResult } from "../types";
 import * as hl from "@nktkas/hyperliquid";
+import { formatPrice } from "@nktkas/hyperliquid/utils";
 import { findOpenOrder, closeAllOrders } from "../db/tableStorage.repository";
 import { getEnvConfig, createClients, getAssetInfo, getPosition } from "../helpers/hyperliquid.helpers";
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";
 import { sendTelegramMessage } from "../helpers/telegram";
-import { getMarketPrice, formatPriceForOrder } from "../helpers/marketPrice.helpers";
+import { getMarketPrice } from "../helpers/marketPrice.helpers";
 
 /**
  * Cancel all open orders for a symbol (including stop loss)
@@ -60,8 +61,8 @@ export async function closeOrder(
         const closePrice = await getMarketPrice(infoClient, signal.symbol, isBuy);
         console.log(`[closeOrder] Symbol: ${signal.symbol}, Market price: ${closePrice}`);
 
-        // Format price according to HyperLiquid requirements
-        const formattedPrice = formatPriceForOrder(closePrice, assetInfo.szDecimals);
+        // Format price using official SDK function
+        const formattedPrice = formatPrice(closePrice, assetInfo.szDecimals);
 
         // Place closing order (opposite direction of position)
         const closeResponse = await exchangeClient.order({

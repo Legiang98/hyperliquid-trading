@@ -1,5 +1,6 @@
 import { WebhookPayload, AssetMeta } from "../types";
 import * as hl from "@nktkas/hyperliquid";
+import { formatPrice } from "@nktkas/hyperliquid/utils";
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";
 
@@ -13,39 +14,12 @@ import { HTTP } from "../constants/http";
 function normalizeOrderSize(
     symbol: string,
     size: number,
-    decimals: number 
+    decimals: number
 ): number {
     const factor = Math.pow(10, decimals);
     return Math.floor(size * factor) / factor;
 }
 
-/**
- * Normalize price for HyperLiquid orders
- * @param price The original price
- * @param szDecimals Size decimals of the asset
- * @returns Normalized price
- * This part is for verifying the price with commas and ensuring it fits exchange requirements 
- * e.g: 3480.2567  ->  3480.25
- */
-function normalizePrice(price: number, szDecimals: number): number {
-    /** 
-     * MAX_DECIMALS defines the maximum decimal places supported by HyperLiquid 
-     * Example: If szDecimals = 2, MAX_DECIMALS - szDecimals = 4, so tickSize = 0.0001
-     */
-
-    const MAX_DECIMALS = 6;
-    const tickSize = Math.pow(10, -(MAX_DECIMALS - szDecimals));
-    let normalized = Math.floor(price / tickSize) * tickSize;
-    const hasDecimal = normalized % 1 !== 0;
-    if (hasDecimal) {
-        const digits = normalized.toString().replace('.', '').replace(/^0+/, '');
-        if (digits.length > 5) {
-            const factor = Math.pow(10, 5 - Math.floor(Math.log10(normalized)) - 1);
-            normalized = Math.floor(normalized * factor) / factor;
-        }
-    }
-    return normalized;
-}
 
 /**
 * Validate the stop loss price with liquidation price
@@ -75,17 +49,17 @@ function validateStoploss(
  * Returns enriched WebhookPayload with quantity and normalized prices
  */
 export async function buildOrder(signal: WebhookPayload, context?: any): Promise<WebhookPayload> {
-    
+
     /*
     * Input for the buildOrder function
     */
     const fixedUsdAmount = parseFloat(process.env.FIX_STOPLOSS || "5");
     const userAddress = process.env.HYPERLIQUID_USER_ADDRESS;
-    
+
     if (!userAddress) {
         throw new AppError("HYPERLIQUID_USER_ADDRESS not configured", HTTP.INTERNAL_SERVER_ERROR);
     }
-    
+
     /*
     * Initialize connection and info client
     */
@@ -93,19 +67,19 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
         isTestnet: process.env.HYPERLIQUID_TESTNET === "true"
     });
     const infoClient = new hl.InfoClient({ transport });
-    
+
     /* Get all pairs and their prices */
     const allMids = await infoClient.allMids();
     const marketPrice = parseFloat(allMids[signal.symbol] || "0");
-    
+
     if (!marketPrice) {
         throw new AppError(`Unable to fetch market price for ${signal.symbol}`, HTTP.BAD_REQUEST);
     }
-    
+
     /* Get leverage information for the current symbol */
-    const assetData = await infoClient.activeAssetData({ 
+    const assetData = await infoClient.activeAssetData({
         user: userAddress as `0x${string}`,
-        coin: signal.symbol 
+        coin: signal.symbol
     });
 
     /*
@@ -129,7 +103,7 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
     */
     const metaResponse = await infoClient.meta();
     const assetIndex = metaResponse.universe.findIndex(asset => asset.name === signal.symbol);
-    
+
     if (assetIndex === -1) {
         throw new AppError(`Symbol ${signal.symbol} not found in HyperLiquid`, HTTP.BAD_REQUEST);
     }
@@ -142,16 +116,27 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
             leverage: leverage.value
         });
     }
-    
+
     /**
     * Get szDecimals from already fetched meta data
     */
     const assetMeta = metaResponse.universe[assetIndex];
     const szDecimalsSymbol = assetMeta.szDecimals;
-    const rawSize = fixedUsdAmount / Math.abs(marketPrice - signal.stopLoss!);
+
+    // Ensure stopLoss is a number for calculations
+    const stopLossPrice = typeof signal.stopLoss === 'string' ? parseFloat(signal.stopLoss) : signal.stopLoss!;
+
+    const rawSize = fixedUsdAmount / Math.abs(marketPrice - stopLossPrice);
     const normalizedQuantity = normalizeOrderSize(signal.symbol, rawSize, szDecimalsSymbol);
-    const normalizedPrice = normalizePrice(marketPrice,szDecimalsSymbol);
-    const normalizedStopLoss = normalizePrice(signal.stopLoss!, szDecimalsSymbol);
+
+    /**
+     * Format prices using official SDK function
+     * - Handles up to 5 significant figures
+     * - Max decimal places: 6 - szDecimals (for perpetuals)
+     * - Returns string to preserve precision
+     */
+    const normalizedPrice = formatPrice(marketPrice, szDecimalsSymbol);
+    const normalizedStopLoss = formatPrice(stopLossPrice, szDecimalsSymbol);
 
     /*
     * Validate stop loss with liquidation price
@@ -162,7 +147,7 @@ export async function buildOrder(signal: WebhookPayload, context?: any): Promise
         marketPrice,
         leverage.value,
         normalizedQuantity,
-        signal.stopLoss!
+        stopLossPrice
     );
 
     if (!isStoplossValid) {

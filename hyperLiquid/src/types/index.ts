@@ -23,8 +23,8 @@ export interface WebhookPayload {
     symbol: string;
     action: string;
     type: string;
-    price: number;
-    stopLoss?: number;
+    price: number | string; // number from webhook, string after formatPrice
+    stopLoss?: number | string; // number from webhook, string after formatPrice
     strategy: string;
     orderId?: string;
     quantity?: number; // Calculated by buildOrder

@@ -21,7 +21,7 @@ export interface NewOrder {
   quantity: number;
   order_type: string;
   action: string;
-  price: number;
+  price: number | string; // Can be number from webhook or string from formatPrice
   oid?: string;
   status: string;
 }

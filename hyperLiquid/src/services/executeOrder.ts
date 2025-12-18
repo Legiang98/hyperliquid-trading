@@ -5,7 +5,6 @@ import { getEnvConfig, createClients, getAssetInfo } from "../helpers/hyperliqui
 import { AppError } from "../helpers/errorHandler";
 import { HTTP } from "../constants/http";
 import { sendTelegramMessage } from "../helpers/telegram";
-import { getFormattedMarketPrice } from "../helpers/marketPrice.helpers";
 
 function extractOrderId(status: any): number {
     if (!status) throw new AppError("Order status is missing", HTTP.BAD_REQUEST);
@@ -36,10 +35,11 @@ export async function executeOrder(
         const size = signal.quantity.toFixed(szDecimals);
         const isBuy = signal.type === "BUY";
 
-        // Get near-market price for immediate execution
-        const formattedPrice = await getFormattedMarketPrice(infoClient, signal.symbol, isBuy, szDecimals);
+        // Use the already-formatted price from buildOrder (formatted with SDK's formatPrice)
+        // signal.price is already a string formatted according to HyperLiquid's rules
+        const formattedPrice = signal.price.toString();
 
-        // Place main order at near-market price
+        // Place main order at the formatted price
         const orderResponse = await exchangeClient.order({
             orders: [{
                 a: assetId,
