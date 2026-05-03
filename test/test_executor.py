@@ -7,7 +7,10 @@ from unittest.mock import patch, MagicMock
 
 # Mock out helpers and services that might need external state
 sys.modules['helpers.telegram'] = MagicMock()
-sys.modules['repositories.dynamo_repository'] = MagicMock()
+mock_repo = MagicMock()
+mock_repo.get_order.return_value = None
+sys.modules['repositories.dynamo_repository'] = mock_repo
+
 
 # Setup environ variables BEFORE importing the handler or any config
 os.environ["HYPERLIQUID_USER_ADDRESS"] = "0xExampleAddress"

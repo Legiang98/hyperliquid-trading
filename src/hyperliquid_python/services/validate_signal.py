@@ -27,11 +27,10 @@ def has_open_position(symbol: str, strategy: str, user_address: str) -> bool:
             
         open_order_oid = open_order.oid
         # Query order status by OID
-        order_status = info_client.query({
-            "type": "orderStatus",
-            "user": user_address,
-            "oid": int(open_order_oid) if str(open_order_oid).isdigit() else open_order_oid
-        })
+        order_status = info_client.query_order_by_oid(
+            user_address,
+            int(open_order_oid) if str(open_order_oid).isdigit() else open_order_oid
+        )
         
         if order_status.get("status") == "ok" and "order" in order_status:
             return order_status["order"].get("status") == "filled"

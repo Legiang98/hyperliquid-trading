@@ -17,7 +17,7 @@ def format_price_for_order(price: float, sz_decimals: int) -> str:
     px_decimals = max(0, max_decimals - math.floor(math.log10(price)) - 1)
     # szDecimals is actually max decimals allowed sometimes, but hyperliquid API usually just uses 5 sig figs.
     # The ts code uses Math.min(pxDecimals, szDecimals) but let's just use 5 sig figs:
-    formatted = f"{price:.{min(px_decimals, sz_decimals)}f}"
+    formatted = f"{price:.{px_decimals}f}"
     return formatted
 
 def get_formatted_market_price(info_client, symbol: str, is_buy: bool, sz_decimals: int) -> str:
